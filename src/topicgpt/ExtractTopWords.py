@@ -4,29 +4,27 @@ import collections
 from tqdm import tqdm
 from typing import List
 import numpy as np
-import re  
-from nltk.tokenize import word_tokenize
+import re
+import jieba
 import umap
 from collections import Counter
 import warnings
-
 from typing import List
 
 # make sure the import works even if the package has not been installed and just the files are used
 try:
-    from topicgpt.GetEmbeddingsOpenAI import GetEmbeddingsOpenAI
+    from topicgpt.GetEmbeddingsLocal import GetEmbeddingsLocal
 except:
-    from GetEmbeddingsOpenAI import GetEmbeddingsOpenAI
-
-nltk.download('stopwords', quiet=True)  # download stopwords
-nltk.download('punkt', quiet=True) # download tokenizer
+    from GetEmbeddingsLocal import GetEmbeddingsLocal
 
 class ExtractTopWords:
-    
+    # 用于从文本数据中提取和分析高频词汇和主题词汇。
     def extract_centroids(self, embeddings: np.ndarray, labels: np.ndarray) -> dict:
         """
         Extract centroids of clusters.
-
+        提取每个聚类的质心（即每个聚类中心点）。
+        输入是嵌入矩阵 embeddings 和聚类标签 labels。
+        返回值是一个字典，键是聚类标签，值是相应质心。
         Args:
             embeddings (np.ndarray): Embeddings to cluster and reduce.
             labels (np.ndarray): Cluster labels. -1 means outlier.
@@ -45,7 +43,9 @@ class ExtractTopWords:
     def extract_centroid(self, embeddings: np.ndarray) -> np.ndarray:
         """
         Extract the single centroid of a cluster.
-
+        提取单个聚类的质心。
+        输入是嵌入矩阵 embeddings。
+        返回值是质心。
         Args:
             embeddings (np.ndarray): Embeddings to extract the centroid from.
 
@@ -57,8 +57,9 @@ class ExtractTopWords:
     
     def compute_centroid_similarity(self, embeddings: np.ndarray, centroid_dict: dict, cluster_label: int) -> np.ndarray:
         """
-        Compute the similarity of the document embeddings to the centroid of the cluster via cosine similarity.
-
+        计算文档嵌入与聚类质心的余弦相似度。
+        输入是嵌入矩阵 embeddings、质心字典 centroid_dict 和聚类标签 cluster_label。
+        返回值是相似度数组。
         Args:
             embeddings (np.ndarray): Embeddings to cluster and reduce.
             centroid_dict (dict): Dictionary of cluster labels and their centroids.
@@ -74,8 +75,9 @@ class ExtractTopWords:
     
     def get_most_similar_docs(self, corpus: list[str], embeddings: np.ndarray, labels: np.ndarray, centroid_dict: dict, cluster_label: int, top_n: int = 10) -> List[str]:
         """
-        Get the most similar documents to the centroid of a cluster.
-
+        获取与聚类质心最相似的文档。
+        输入是文档列表 corpus、嵌入矩阵 embeddings、聚类标签 labels、质心字典 centroid_dict、聚类标签 cluster_label 和提取的文档数量 top_n。
+        返回值是最相似的文档列表。
         Args:
             corpus (list[str]): List of documents.
             embeddings (np.ndarray): Embeddings to cluster and reduce.
@@ -96,7 +98,7 @@ class ExtractTopWords:
                         corpus: list[str],
                         remove_stopwords: bool = True, 
                         remove_punction: bool = True, 
-                        min_word_length: int = 3,
+                        min_word_length: int = 2,
                         max_word_length: int = 20, 
                         remove_short_words: bool = True, 
                         remove_numbers: bool = True, 
@@ -105,8 +107,9 @@ class ExtractTopWords:
                         min_freq: float = 0.1,
                         max_freq: float = 0.9) -> list[str]:
         """
-        Compute the vocabulary of the corpus and perform preprocessing of the corpus.
-
+        计算语料库的词汇表，并对语料库进行预处理。
+        输入包括文档列表 corpus 和一系列可选参数。
+        返回值是词汇表的排序列表。
         Args:
             corpus (list[str]): List of documents.
             remove_stopwords (bool, optional): Whether to remove stopwords.
@@ -124,21 +127,19 @@ class ExtractTopWords:
             list[str]: List of words in the corpus sorted alphabetically.
         """
 
-        stopwords = set(nltk.corpus.stopwords.words('english'))
+        stopwords = set(nltk.corpus.stopwords.words('chinese'))
         
         word_counter = collections.Counter()
         doc_frequency = collections.defaultdict(set)
 
         for doc_id, doc in enumerate(tqdm(corpus, disable=not verbose, desc="Processing corpus")):
-            words = nltk.word_tokenize(doc)
+            words = jieba.lcut(doc)
             for word in words:
                 if remove_punction and word in string.punctuation:
                     continue
                 if remove_stopwords and word.lower() in stopwords:
                     continue
                 if remove_numbers and re.search(r'\d', word):  # use a regular expression to check for digits
-                    continue
-                if not re.search('[a-zA-Z]', word):  # checks if word contains at least one alphabetic character
                     continue
                 # remove words that do not begin with an alphabetic character
                 if not word[0].isalpha():
@@ -182,8 +183,9 @@ class ExtractTopWords:
 
     def compute_words_topics(self, corpus: list[str], vocab: list[str], labels: np.ndarray) -> dict:
         """
-        Compute the words per topic.
-
+        计算每个主题的词汇。
+        输入是文档列表 corpus、词汇表 vocab 和聚类标签 labels。
+        返回值是主题词汇的字典。
         Args:
             corpus (list[str]): List of documents.
             vocab (list[str]): List of words in the corpus sorted alphabetically.
@@ -202,21 +204,21 @@ class ExtractTopWords:
 
         for doc, label in tqdm(zip(corpus, labels), desc="Computing words per topic", total=len(corpus)):
             if label != -1:
-                words = word_tokenize(doc)
+                words = jieba.lcut(doc)
                 for word in words:
                     if word.lower() in vocab:
                         words_per_topic[label].append(word.lower())
 
         return words_per_topic
                     
-    def embed_vocab_openAI(self, client, vocab: list[str], embedder: GetEmbeddingsOpenAI = None) -> dict[str, np.ndarray]:
+    def embed_vocab_openAI(self, client, vocab: list[str], embedder: GetEmbeddingsLocal = None) -> dict[str, np.ndarray]:
         """
         Embed the vocabulary using the OpenAI embedding API.
 
         Args:
             client: Client.
             vocab (list[str]): List of words in the corpus sorted alphabetically.
-            embedder (GetEmbeddingsOpenAI, optional): Embedding object.
+            embedder (GetEmbeddingsLocal, optional): Embedding object.
 
         Returns:
             dict[str, np.ndarray]: Dictionary of words and their embeddings.
@@ -224,7 +226,7 @@ class ExtractTopWords:
 
         vocab = sorted(list(set(vocab)))
         if embedder is None: 
-            embedder = GetEmbeddingsOpenAI.GetEmbeddingsOpenAI(client)
+            embedder = GetEmbeddingsLocal.GetEmbeddingsLocal(client)
         result = embedder.get_embeddings(vocab)
 
         res_dict = {}
@@ -246,7 +248,7 @@ class ExtractTopWords:
         """
 
         bow = np.zeros(len(vocab))
-        words = word_tokenize(document)
+        words = jieba.lcut(document)
         if vocab_set is None:
             vocab_set = set(vocab)
         for word in words:
@@ -307,7 +309,7 @@ class ExtractTopWords:
         for i, label in tqdm(enumerate(np.unique(labels)), desc="Computing word-topic matrix", total=len(np.unique(labels))):
             topic_docs = corpus_arr[labels == label]
             topic_doc_string = " ".join(topic_docs)
-            topic_doc_words = word_tokenize(topic_doc_string)
+            topic_doc_words = jieba.lcut(topic_doc_string)
             topic_doc_counter = Counter(topic_doc_words)
 
             word_topic_mat[:, i] = np.array([topic_doc_counter.get(word, 0) for word in vocab])

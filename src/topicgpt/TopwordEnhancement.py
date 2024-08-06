@@ -42,7 +42,7 @@ class TopwordEnhancement:
         self.max_context_length = max_context_length
         self.openai_model_temperature = openai_model_temperature
         self.basic_model_instruction = basic_model_instruction
-        self.corpus_instruction = f" The following information is available about the corpus used to identify the topics: {corpus_instruction}"
+        self.corpus_instruction = f"下面是主题识别的语料库信息: {corpus_instruction}"
 
     def __str__(self) -> str:
         repr = f"TopwordEnhancement(openai_model = {self.openai_model})"

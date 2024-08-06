@@ -7,12 +7,12 @@ import plotly.express as px
 import umap.plot
 from copy import deepcopy
 from sklearn.cluster import AgglomerativeClustering
-
 from typing import Tuple
 
-class Clustering_and_DimRed():
 
+class Clustering_and_DimRed():
     """
+    用于执行UMAP降维和HDBSCAN聚类。它包括数据预处理、降维、聚类和可视化等功能。
     Class to perform dimensionality reduction with UMAP followed by clustering with HDBSCAN.
     """
     def __init__(self,
@@ -54,13 +54,15 @@ class Clustering_and_DimRed():
         assert min_cluster_size_hdbscan > 0, "min_cluster_size_hdbscan must be greater than 0"
         assert number_clusters_hdbscan is None or number_clusters_hdbscan > 0, "number_clusters_hdbscan must be greater than 0 or None"
         assert random_state is None or random_state >= 0, "random_state must be greater than or equal to 0"
-
+        if isinstance(number_clusters_hdbscan, int) and number_clusters_hdbscan <  min_cluster_size_hdbscan:
+            # 类别的最小数量必须大于类别数量
+            min_cluster_size_hdbscan = int(number_clusters_hdbscan /2)
         self.random_state = random_state
         self.verbose = verbose
-        self.UMAP_hyperparams = UMAP_hyperparams
-        self.HDBSCAN_hyperparams = HDBSCAN_hyperparams
+        self.UMAP_hyperparams = UMAP_hyperparams  #{'n_components': 5}
+        self.HDBSCAN_hyperparams = HDBSCAN_hyperparams   #{}
 
-        # update hyperparameters for UMAP
+        # 更新 HDBSCAN 的超参数
         self.UMAP_hyperparams["n_components"] = n_dims_umap
         self.UMAP_hyperparams["n_neighbors"] = n_neighbors_umap
         self.UMAP_hyperparams["min_dist"] = min_dist_umap
@@ -68,7 +70,7 @@ class Clustering_and_DimRed():
         self.UMAP_hyperparams["random_state"] = random_state
         self.UMAP_hyperparams["verbose"] = verbose
         self.umap = umap.UMAP(**self.UMAP_hyperparams)
-
+        #
         self.HDBSCAN_hyperparams["min_cluster_size"] = min_cluster_size_hdbscan
         self.HDBSCAN_hyperparams["metric"] = metric_hdbscan
         self.HDBSCAN_hyperparams["cluster_selection_method"] = cluster_selection_method_hdbscan
@@ -78,7 +80,7 @@ class Clustering_and_DimRed():
     
     def reduce_dimensions_umap(self, embeddings: np.ndarray) -> Tuple[np.ndarray, umap.UMAP]:
         """
-        Reduces dimensions of embeddings using UMAP.
+        Reduces dimensions of embeddings using UMAP.降维算法
 
         Args:
             embeddings (np.ndarray): Embeddings to reduce.
@@ -88,7 +90,7 @@ class Clustering_and_DimRed():
                 - reduced_embeddings (np.ndarray): Reduced embeddings.
                 - umap_mapper (umap.UMAP): UMAP mapper for transforming new embeddings, especially embeddings of the vocabulary. (MAKE SURE TO NORMALIZE EMBEDDINGS AFTER USING THE MAPPER)
         """
-
+        # 使用UMAP的超参数，注意检查超参数
         mapper = umap.UMAP(**self.UMAP_hyperparams).fit(embeddings)
         dim_red_embeddings = mapper.transform(embeddings)
         dim_red_embeddings = dim_red_embeddings/np.linalg.norm(dim_red_embeddings, axis=1).reshape(-1,1)
@@ -97,7 +99,7 @@ class Clustering_and_DimRed():
     def cluster_hdbscan(self, embeddings: np.ndarray) -> np.ndarray:
         """
         Cluster embeddings using HDBSCAN.
-        
+        使用HDBSCAN对降维后的嵌入进行聚类，如果指定了固定的聚类数量，则进一步使用层次聚类，并重新索引标签使其连续。
         If self.number_clusters_hdbscan is not None, further clusters the data with AgglomerativeClustering to achieve a fixed number of clusters.
 
         Args:
@@ -106,14 +108,14 @@ class Clustering_and_DimRed():
         Returns:
             np.ndarray: Cluster labels.
         """
-
+        ## 使用 HDBSCAN 进行聚类
         labels = self.hdbscan.fit_predict(embeddings)
         outliers = np.where(labels == -1)[0]
-
+        ## 找到所有的离群点（标签为 -1）
         if self.number_clusters_hdbscan is not None:
-            clusterer = AgglomerativeClustering(n_clusters=self.number_clusters_hdbscan)  #one cluster for outliers  
+            clusterer = AgglomerativeClustering(n_clusters=self.number_clusters_hdbscan)  # # 使用层次聚类重新聚类  #one cluster for outliers
             labels = clusterer.fit_predict(embeddings)
-            labels[outliers] = -1
+            labels[outliers] = -1  # # 将离群点的标签重新设置为 -1
 
         # reindex to make the labels consecutive numbers from -1 to the number of clusters. -1 is reserved for outliers
         unique_labels = np.unique(labels)
@@ -145,7 +147,7 @@ class Clustering_and_DimRed():
     def visualize_clusters_static(self, embeddings: np.ndarray, labels: np.ndarray):
         """
         Reduce dimensionality with UMAP to two dimensions and plot the clusters.
-
+        使用UMAP将嵌入降维到二维，并使用Matplotlib绘制聚类结果。
         Args:
             embeddings (np.ndarray): Embeddings for which to plot clustering.
             labels (np.ndarray): Cluster labels.

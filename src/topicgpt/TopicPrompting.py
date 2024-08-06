@@ -78,7 +78,7 @@ class TopicPrompting:
         self.openai_embedding_model = openai_embedding_model
         self.max_context_length_embedding = max_context_length_embedding    
         self.basic_model_instruction = basic_model_instruction
-        self.corpus_instruction = f" The following information is available about the corpus used to identify the topics: {corpus_instruction}.\n"
+        self.corpus_instruction = f"下面是主题识别的语料库信息: {corpus_instruction}.\n"
         self.enhancer = enhancer
         self.vocab = vocab
         self.vocab_embeddings = vocab_embeddings

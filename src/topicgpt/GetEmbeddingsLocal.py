@@ -1,15 +1,16 @@
 from openai import OpenAI
-
 import tiktoken
+import requests
 from tqdm import tqdm
+import json
 import numpy as np
 
-class GetEmbeddingsOpenAI:
+class GetEmbeddingsLocal:
     """
     This class allows to compute embeddings of text using the OpenAI API.
     """
 
-    def __init__(self, client, azure_config: dict = {}, embedding_model: str = "text-embedding-ada-002", tokenizer: str = None, max_tokens: int = 8191) -> None:
+    def __init__(self, client_url="http://192.168.50.189:6303", embedding_model: str = "m3e-base", max_tokens: int = 8191) -> None:
         """
         Constructor of the class.
 
@@ -23,13 +24,11 @@ class GetEmbeddingsOpenAI:
             By default, the embedding model "text-embedding-ada-002" is used with the corresponding tokenizer "cl100k_base" and a maximum number of tokens of 8191.
         """
 
-        self.client = client
+        self.client_url = client_url
         self.embedding_model = embedding_model
-        self.tokenizer_str = tokenizer
         self.max_tokens = max_tokens
 
-    @staticmethod
-    def num_tokens_from_string(string: str, encoding) -> int:
+    def num_tokens_from_string(self, string: str) -> int:
         """
         Returns the number of tokens in a text string.
 
@@ -40,7 +39,14 @@ class GetEmbeddingsOpenAI:
         Returns:
             int: Number of tokens in the text string.
         """
-        num_tokens = len(encoding.encode(string))
+        url = f"{self.client_url}/api/tokenizer"
+        data = {"texts": string, "model":self.embedding_model}
+        # 提交form格式数据
+        headers = {'content-type': 'application/json'}
+        # 提交form格式数据tokenizer
+        r = requests.post(url, data=json.dumps(data), headers=headers)
+        res = r.json()
+        num_tokens = len(res["data"]["tokenize"]["input_ids"][0])
         return num_tokens
 
     def compute_number_of_tokens(self, corpus: list[str]) -> int:
@@ -55,15 +61,10 @@ class GetEmbeddingsOpenAI:
         """
 
 
-        if self.tokenizer_str is None:
-             tokenizer = tiktoken.encoding_for_model(self.embedding_model)
-
-        else: 
-             tokenizer = tiktoken.get_encoding(self.tokenizer_str)
 
         num_tokens = 0
         for document in tqdm(corpus):
-            num_tokens += self.num_tokens_from_string(document, tokenizer)
+            num_tokens += self.num_tokens_from_string(document)
 
         return num_tokens
 
@@ -98,15 +99,9 @@ class GetEmbeddingsOpenAI:
             List[list[str]]: A list of lists of strings to embed, where each element in the outer list is a list of chunks comprising the document.
         """
 
-        if self.tokenizer_str is None:
-            tokenizer = tiktoken.encoding_for_model(self.embedding_model)
-        else:
-            tokenizer = tiktoken.get_encoding(self.tokenizer_str)
-
-
         split_text = []
         for document in tqdm(text):
-            if self.num_tokens_from_string(document, tokenizer) > self.max_tokens:
+            if self.num_tokens_from_string(document) > self.max_tokens:
                 split_text.append(self.split_doc(document))
             else:
                 split_text.append([document])
@@ -123,7 +118,13 @@ class GetEmbeddingsOpenAI:
         Returns:
             API response: The response from the API.
         """
-        response = self.client.embeddings.create(input = [text], model = self.embedding_model)
+        url = f"{self.client_url}/v1/embedding"
+        data = {"input": text, "model":self.embedding_model}
+        # 提交form格式数据
+        headers = {'content-type': 'application/json'}
+        # 提交form格式数据tokenizer
+        r = requests.post(url, data=json.dumps(data), headers=headers)
+        response = r.json()
         return response
 
 
@@ -169,7 +170,7 @@ class GetEmbeddingsOpenAI:
             emb_lis = []
             for api_res in api_res_doc:
                 if api_res["api_res"] is not None:
-                    emb_lis.append(np.array(api_res["api_res"].data[0].embedding))
+                    emb_lis.append(np.array(api_res["api_res"]["data"][0]["embedding"]))
             text = " ".join(chunk_lis)
             embedding = np.mean(emb_lis, axis = 0)
             api_res_list.append(

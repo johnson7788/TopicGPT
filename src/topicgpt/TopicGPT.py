@@ -6,6 +6,7 @@ from topicgpt.Clustering import Clustering_and_DimRed
 from topicgpt.ExtractTopWords import ExtractTopWords
 from topicgpt.TopwordEnhancement import TopwordEnhancement
 from topicgpt.GetEmbeddingsOpenAI import GetEmbeddingsOpenAI
+from topicgpt.GetEmbeddingsLocal import GetEmbeddingsLocal
 from topicgpt.TopicPrompting import TopicPrompting
 from topicgpt.TopicRepresentation import Topic
 from topicgpt.Client import Client
@@ -18,9 +19,10 @@ class TopicGPT:
     """
     This is the main class for doing topic modelling with TopicGPT. 
     """
-
     def __init__(self,
              api_key: str = "",
+             base_url: str = "",
+             http_client=None,
              azure_endpoint: dict = {},
              n_topics: int = None,
              openai_prompting_model: str = "gpt-3.5-turbo-16k",
@@ -28,6 +30,7 @@ class TopicGPT:
              corpus_instruction: str = "",
              document_embeddings: np.ndarray = None,
              vocab_embeddings: dict[str, np.ndarray] = None,
+             embedding_client: str = None,
              embedding_model: str = "text-embedding-ada-002",
              max_number_of_tokens_embedding: int = 8191,
              use_saved_embeddings: bool = True,
@@ -78,7 +81,7 @@ class TopicGPT:
         assert len(topword_extraction_methods) > 0, "You need to provide at least one topword extraction method."
         assert n_topwords_description <= n_topwords, "The number of top words for the topic description needs to be smaller or equal to the number of top words."
 
-        self.client = Client(api_key = api_key, azure_endpoint = azure_endpoint)
+        self.client = Client(api_key = api_key, base_url=base_url, azure_endpoint = azure_endpoint,http_client=http_client)
 
 
         self.n_topics = n_topics
@@ -89,7 +92,8 @@ class TopicGPT:
         self.vocab_embeddings = vocab_embeddings
         self.embedding_model = embedding_model
         self.max_number_of_tokens_embedding = max_number_of_tokens_embedding
-        self.embedder = GetEmbeddingsOpenAI(client = self.client, embedding_model = self.embedding_model, max_tokens = self.max_number_of_tokens_embedding)
+        # self.embedder = GetEmbeddingsOpenAI(client = embedding_client, embedding_model = self.embedding_model, max_tokens = self.max_number_of_tokens_embedding)
+        self.embedder = GetEmbeddingsLocal(max_tokens = self.max_number_of_tokens_embedding)
         self.clusterer = clusterer
         self.n_topwords = n_topwords
         self.n_topwords_description = n_topwords_description
@@ -178,13 +182,13 @@ class TopicGPT:
             self.vocab = self.extractor.compute_corpus_vocab(self.corpus, **self.compute_vocab_hyperparams)
         
         self.topic_lis = TopicRepresentation.extract_topics_no_new_vocab_computation(
-            corpus = corpus,
-            vocab = self.vocab,
-            document_embeddings = self.document_embeddings,
-            clusterer = self.clusterer,
-            vocab_embeddings = self.vocab_embeddings,
-            n_topwords = self.n_topwords,
-            topword_extraction_methods = self.topword_extraction_methods,
+            corpus = corpus,  #list[str]
+            vocab = self.vocab, #list[str]
+            document_embeddings = self.document_embeddings,  #ndarry, [document_num, embedding_size]
+            clusterer = self.clusterer,  #聚类和降维度算法
+            vocab_embeddings = self.vocab_embeddings,  #每个词的嵌入
+            n_topwords = self.n_topwords,   #2000？
+            topword_extraction_methods = self.topword_extraction_methods,  #['tfidf', 'cosine_similarity']
             consider_outliers = True
         )
 
@@ -250,7 +254,7 @@ class TopicGPT:
 
         if self.vocab_embeddings is None or self.document_embeddings is None:  
             if verbose:
-                print("Computing embeddings...")
+                print("计算单词表向量和文档向量")
             self.compute_embeddings(corpus = self.corpus)
         else:
             print('Embeddings already computed')
@@ -259,7 +263,7 @@ class TopicGPT:
         self.topic_lis = self.extract_topics(corpus = self.corpus)
 
         if verbose:
-            print("Describing topics...")
+            print("使用LLM解释聚类后生成的主题")
         self.topic_lis = self.describe_topics(topics = self.topic_lis)
 
         self.topic_prompting.topic_lis = self.topic_lis
