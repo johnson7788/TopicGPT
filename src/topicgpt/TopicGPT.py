@@ -68,8 +68,6 @@ class TopicGPT:
             topic_prompting (TopicPrompting, optional): Topic prompting object for formulating prompts. Find the class in the "TopicPrompting/TopicPrompting.py" folder. If None, a topic prompting object with default parameters is used. If an openai model is specified here, it will overwrite the openai_prompting_model argument for topic description.
             verbose (bool, optional): Whether to print detailed information about the process. This can be overridden by arguments in passed objects.
         """
-        
-
 
         # Do some checks on the input arguments
         assert api_key is not None, "You need to provide an OpenAI API key."
@@ -82,7 +80,6 @@ class TopicGPT:
         assert n_topwords_description <= n_topwords, "The number of top words for the topic description needs to be smaller or equal to the number of top words."
 
         self.client = Client(api_key = api_key, base_url=base_url, azure_endpoint = azure_endpoint,http_client=http_client)
-
 
         self.n_topics = n_topics
         self.openai_prompting_model = openai_prompting_model

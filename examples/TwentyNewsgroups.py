@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # coding: utf-8
 
-# Example Usage of TopicGPT: 20 Newsgroups Dataset
+# Example Usage
 
 import json
 import os

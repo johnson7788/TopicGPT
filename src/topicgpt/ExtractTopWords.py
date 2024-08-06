@@ -194,8 +194,6 @@ class ExtractTopWords:
         Returns:
             dict: Dictionary of topics and their words.
         """
-
-
         # Download NLTK resources (only required once)
         nltk.download("punkt")
         vocab = set(vocab)
@@ -213,8 +211,9 @@ class ExtractTopWords:
                     
     def embed_vocab_openAI(self, client, vocab: list[str], embedder: GetEmbeddingsLocal = None) -> dict[str, np.ndarray]:
         """
-        Embed the vocabulary using the OpenAI embedding API.
-
+        获取单词表中每个词的嵌入
+        输入是客户端 client、词汇表 vocab 和可选的嵌入对象 embedder。
+        返回值是词汇和其嵌入的字典。
         Args:
             client: Client.
             vocab (list[str]): List of words in the corpus sorted alphabetically.
@@ -236,7 +235,9 @@ class ExtractTopWords:
     
     def compute_bow_representation(self, document: str, vocab: list[str], vocab_set: set[str]) -> np.ndarray:
         """
-        Compute the bag-of-words representation of a document.
+        计算文档的词袋表示。
+        输入是文档 document、词汇表 vocab 和词汇集合 vocab_set。
+        返回值是词袋表示的数组。
 
         Args:
             document (str): Document to compute the bag-of-words representation of.
@@ -255,38 +256,12 @@ class ExtractTopWords:
             if word.lower() in vocab_set:
                 bow[vocab.index(word.lower())] += 1
         return bow   
-    
-    def compute_word_topic_mat_old(self, corpus: list[str], vocab: list[str], labels: np.ndarray, consider_outliers: bool = False) -> np.ndarray:
-        """
-        Compute the word-topic matrix.
 
-        Args:
-            corpus (list[str]): List of documents.
-            vocab (list[str]): List of words in the corpus sorted alphabetically.
-            labels (np.ndarray): Cluster labels. -1 means outlier.
-            consider_outliers (bool, optional): Whether to consider outliers when computing the top words. I.e. whether the labels contain -1 to indicate outliers.
-
-        Returns:
-            np.ndarray: Word-topic matrix.
-        """
-
-        if consider_outliers:
-            word_topic_mat = np.zeros(len(vocab), len((np.unique(labels))))
-        else:
-            word_topic_mat = np.zeros((len(vocab), len((np.unique(labels)) - 1)))
-
-        vocab_set = set(vocab)
-        for i, doc in tqdm(enumerate(corpus), desc="Computing word-topic matrix", total=len(corpus)):
-            if labels[i] > - 0.5:
-                bow = self.compute_bow_representation(doc, vocab, vocab_set)
-                idx_to_add = labels[i]
-                word_topic_mat[:, idx_to_add] += bow
-
-        return word_topic_mat
-    
     def compute_word_topic_mat(self, corpus: list[str], vocab: list[str], labels: np.ndarray, consider_outliers=False) -> np.ndarray:
         """
-        Compute the word-topic matrix efficiently.
+        高效地计算词-主题矩阵。
+        输入是文档列表 corpus、词汇表 vocab 和聚类标签 labels。
+        返回值是词-主题矩阵。
 
         Args:
             corpus (list[str]): List of documents.
@@ -318,8 +293,9 @@ class ExtractTopWords:
 
     def extract_topwords_tfidf(self, word_topic_mat: np.ndarray, vocab: list[str], labels: np.ndarray, top_n_words: int = 10) -> dict:
         """
-        Extract the top words for each topic using a class-based tf-idf score.
-
+        使用基于类的tf-idf得分提取每个主题的高频词。
+        输入是词-主题矩阵 word_topic_mat、词汇表 vocab 和聚类标签 labels。
+        返回值是每个主题的高频词字典。
         Args:
             word_topic_mat (np.ndarray): Word-topic matrix.
             vocab (list[str]): List of words in the corpus sorted alphabetically.
@@ -359,8 +335,9 @@ class ExtractTopWords:
     
     def compute_embedding_similarity_centroids(self, vocab: list[str], vocab_embedding_dict: dict, umap_mapper: umap.UMAP, centroid_dict: dict, reduce_vocab_embeddings: bool = False, reduce_centroid_embeddings: bool = False) -> np.ndarray:
         """
-        Compute the cosine similarity of each word in the vocabulary to each centroid.
-
+        计算词汇到聚类质心的余弦相似度。
+        输入是词汇表 vocab、词汇嵌入字典 vocab_embedding_dict、UMAP映射器 umap_mapper 和质心字典 centroid_dict。
+        返回值是词汇到质心的余弦相似度矩阵。
         Args:
             vocab (list[str]): List of words in the corpus sorted alphabetically.
             vocab_embedding_dict (dict): Dictionary of words and their embeddings.
@@ -397,8 +374,9 @@ class ExtractTopWords:
     
     def extract_topwords_centroid_similarity(self, word_topic_mat: np.ndarray, vocab: list[str], vocab_embedding_dict: dict, centroid_dict: dict, umap_mapper: umap.UMAP, top_n_words: int = 10, reduce_vocab_embeddings: bool = True, reduce_centroid_embeddings: bool = False, consider_outliers: bool = False) -> tuple[dict, np.ndarray]:
         """
-        Extract the top words for each cluster by computing the cosine similarity of the words that occur in the corpus to the centroid of the cluster.
-
+        通过计算词汇到聚类质心的余弦相似度提取每个聚类的高频词。
+        输入是词-主题矩阵 word_topic_mat、词汇表 vocab、词汇嵌入字典 vocab_embedding_dict、质心字典 centroid_dict、UMAP映射器 umap_mapper 和提取的高频词数量 top_n_words。
+        返回值是高频词字典和词汇到质心的余弦相似度矩阵。
         Args:
             word_topic_mat (np.ndarray): Word-topic matrix.
             vocab (list[str]): List of words in the corpus sorted alphabetically.
