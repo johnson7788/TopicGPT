@@ -5,13 +5,11 @@ import pickle
 from topicgpt.Clustering import Clustering_and_DimRed
 from topicgpt.ExtractTopWords import ExtractTopWords
 from topicgpt.TopwordEnhancement import TopwordEnhancement
-from topicgpt.GetEmbeddingsOpenAI import GetEmbeddingsOpenAI
 from topicgpt.GetEmbeddingsLocal import GetEmbeddingsLocal
 from topicgpt.TopicPrompting import TopicPrompting
 from topicgpt.TopicRepresentation import Topic
 from topicgpt.Client import Client
 import topicgpt.TopicRepresentation as TopicRepresentation
-
 
 embeddings_path= "SavedEmbeddings/embeddings.pkl" #global variable for the path to the embeddings
 
@@ -30,7 +28,7 @@ class TopicGPT:
              corpus_instruction: str = "",
              document_embeddings: np.ndarray = None,
              vocab_embeddings: dict[str, np.ndarray] = None,
-             embedding_client: str = None,
+             embedding_client_url: str = None,
              embedding_model: str = "text-embedding-ada-002",
              max_number_of_tokens_embedding: int = 8191,
              use_saved_embeddings: bool = True,
@@ -89,8 +87,7 @@ class TopicGPT:
         self.vocab_embeddings = vocab_embeddings
         self.embedding_model = embedding_model
         self.max_number_of_tokens_embedding = max_number_of_tokens_embedding
-        # self.embedder = GetEmbeddingsOpenAI(client = embedding_client, embedding_model = self.embedding_model, max_tokens = self.max_number_of_tokens_embedding)
-        self.embedder = GetEmbeddingsLocal(max_tokens = self.max_number_of_tokens_embedding)
+        self.embedder = GetEmbeddingsLocal(client_url=embedding_client_url, embedding_model=embedding_model, max_tokens = self.max_number_of_tokens_embedding)
         self.clusterer = clusterer
         self.n_topwords = n_topwords
         self.n_topwords_description = n_topwords_description
