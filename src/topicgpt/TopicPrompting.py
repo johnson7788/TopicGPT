@@ -995,10 +995,10 @@ class TopicPrompting:
         # prune all topic descriptions to the maximum number of tokens by taking away the last word until the description fits
 
         max_number_tokens_per_topic = max_number_tokens // len(topic_idx_lis)
-        tiktoken_encodings = {idx: tiktoken.encoding_for_model(self.openai_prompting_model).encode(topic_info[idx]) for idx in topic_idx_lis}
+        tiktoken_encodings = {idx: self.embedder.encoding_for_model(topic_info[idx]) for idx in topic_idx_lis}
         pruned_encodings = {idx: tiktoken_encodings[idx][:max_number_tokens_per_topic] for idx in topic_idx_lis}
 
-        topic_info = {idx: tiktoken.encoding_for_model(self.openai_prompting_model).decode(pruned_encodings[idx]) for idx in topic_idx_lis}
+        topic_info = {idx: self.embedder.decoding_for_model(pruned_encodings[idx]) for idx in topic_idx_lis}
 
         return topic_info
 
@@ -1242,6 +1242,8 @@ class TopicPrompting:
                 if os.path.exists("cache_function.pkl"):
                     with open("cache_function.pkl", "rb") as f:
                         response_message = pickle.load(f)
+                    response_message.function_call.name = "get_topic_information"
+                    response_message.function_call.arguments = '{"topic_idx_lis":[0,1]}'
                 else:
                     response_message = self.client.chat.completions.create(model = self.openai_prompting_model,
                         messages = messages,
@@ -1274,6 +1276,7 @@ class TopicPrompting:
                         }
                     )  # extend conversation with function response
                     # 函数调用的结果，再次尝试调用ChatGPT，获取最终的结果
+                    print("函数调用成功，开始尝试调用ChatGPT获取最终结果")
                     second_response = self.client.chat.completions.create(model=self.openai_prompting_model,
                     messages=messages)  # get a new response from GPT where it can see the function response
                 elif num == n_tries-1:
