@@ -4,7 +4,6 @@ import openai
 from openai import OpenAI
 import numpy as np
 import json
-import tiktoken
 import openai
 from openai import OpenAI
 import re
@@ -435,7 +434,7 @@ class TopicPrompting:
                 break
             if len(encoded_doc) > doc_cutoff_threshold:
                 encoded_doc = encoded_doc[:doc_cutoff_threshold]
-                topk_docs[i] = tiktoken.encoding_for_model(self.openai_prompting_model).decode(encoded_doc)
+                topk_docs[i] = self.embedder.decoding_for_model(encoded_doc)['outputs_without_special']
         # topk_docs: list, 文档内容,  # 文档的索引
         return topk_docs, [int(elem) for elem in topk_doc_indices]
 
@@ -995,10 +994,10 @@ class TopicPrompting:
         # prune all topic descriptions to the maximum number of tokens by taking away the last word until the description fits
 
         max_number_tokens_per_topic = max_number_tokens // len(topic_idx_lis)
-        tiktoken_encodings = {idx: self.embedder.encoding_for_model(topic_info[idx]) for idx in topic_idx_lis}
-        pruned_encodings = {idx: tiktoken_encodings[idx][:max_number_tokens_per_topic] for idx in topic_idx_lis}
+        encodings = {idx: self.embedder.encoding_for_model(topic_info[idx]) for idx in topic_idx_lis}
+        pruned_encodings = {idx: encodings[idx][:max_number_tokens_per_topic] for idx in topic_idx_lis}
 
-        topic_info = {idx: self.embedder.decoding_for_model(pruned_encodings[idx]) for idx in topic_idx_lis}
+        topic_info = {idx: self.embedder.decoding_for_model(pruned_encodings[idx])['outputs_without_special'] for idx in topic_idx_lis}
 
         return topic_info
 
