@@ -16,7 +16,9 @@ class TopwordEnhancement:
     max_context_length: int = 4000,
     openai_model_temperature: float = 0.5,
     basic_model_instruction: str = basic_instruction,
-    corpus_instruction: str = "") -> None:
+    corpus_instruction: str = "",
+    embedder = None
+    ) -> None:
         """
         Initialize the OpenAIAssistant with the specified parameters.
 
@@ -27,7 +29,7 @@ class TopwordEnhancement:
             openai_model_temperature (float, optional): The softmax temperature to use for the OpenAI model (default is 0.5).
             basic_model_instruction (str, optional): The basic instruction for the model.
             corpus_instruction (str, optional): The instruction for the corpus. Useful if specific information on the corpus is available.
-
+            embedder: 实例化后的嵌入模型
         Returns:
             None
         """
@@ -43,7 +45,7 @@ class TopwordEnhancement:
         self.openai_model_temperature = openai_model_temperature
         self.basic_model_instruction = basic_model_instruction
         self.corpus_instruction = f"下面是主题识别的语料库信息: {corpus_instruction}"
-
+        self.embedder = embedder
     def __str__(self) -> str:
         repr = f"TopwordEnhancement(openai_model = {self.openai_model})"
         return repr
@@ -62,12 +64,11 @@ class TopwordEnhancement:
         Returns:
             int: Number of tokens in the messages.
         """
-        encoding = tiktoken.encoding_for_model(self.openai_model)
         n_tokens = 0
         for message in messages: 
             for key, value in message.items():
                 if key == "content":
-                    n_tokens += len(encoding.encode(value))
+                    n_tokens += len(self.embedder.encoding_for_model(value))
 
         return n_tokens
 
@@ -97,8 +98,8 @@ class TopwordEnhancement:
         topwords = np.array(topwords)
 
 
-        # if too many topwords are given, use only the first part of the topwords that fits into the context length
-        tokens_cumsum = np.cumsum([len(tiktoken.encoding_for_model(self.openai_model).encode(tw + ", ")) for tw in topwords]) + len(tiktoken.encoding_for_model(self.openai_model).encode(self.basic_model_instruction + " " + self.corpus_instruction))
+        # if too many topwords are given, use only the first part of the topwords that fits into the context length, 计算上下文长度不超过llm长度
+        tokens_cumsum = np.cumsum([len(self.embedder.encoding_for_model(tw + ", ")) for tw in topwords]) + len(self.embedder.encoding_for_model(self.basic_model_instruction + " " + self.corpus_instruction))
         if tokens_cumsum[-1] > self.max_context_length:
             print("Too many topwords given. Using only the first part of the topwords that fits into the context length. Number of topwords used: ", np.argmax(tokens_cumsum > self.max_context_length))
             n_words = np.argmax(tokens_cumsum > self.max_context_length)
@@ -184,7 +185,7 @@ class TopwordEnhancement:
         documents = new_doc_lis
 
         # if too many documents are given, use only the first part of the documents that fits into the context length
-        tokens_cumsum = np.cumsum([len(tiktoken.encoding_for_model(self.openai_model).encode(doc + ", ")) for doc in documents]) + len(tiktoken.encoding_for_model(self.openai_model).encode(self.basic_model_instruction + " " + self.corpus_instruction))
+        tokens_cumsum = np.cumsum([len(self.embedder.encoding_for_model(doc + ", ")) for doc in documents]) + len(self.embedder.encoding_for_model(self.basic_model_instruction + " " + self.corpus_instruction))
         if tokens_cumsum[-1] > self.max_context_length:
             print("Too many documents given. Using only the first part of the documents that fits into the context length. Number of documents used: ", np.argmax(tokens_cumsum > self.max_context_length))
             n_documents = np.argmax(tokens_cumsum > self.max_context_length)

@@ -62,7 +62,7 @@ def initialize_model(api_key, n_topics=6):
     )
     embedding_client = OpenAI(api_key="",base_url="http://localhost:11434/v1", http_client=http_client)
     embedding_model = "m3e-base"
-    embedding_client_url="http://192.168.50.189:6303"
+    embedding_client_url="http://wac8:6303"
     # embedding_model = "text-embedding-ada-002"
     return TopicGPT(api_key=api_key, base_url="https://api.groq.com/openai/v1",http_client=http_client, n_topics=n_topics,openai_prompting_model="llama-3.1-70b-versatile",embedding_model=embedding_model,embedding_client_url=embedding_client_url)
 

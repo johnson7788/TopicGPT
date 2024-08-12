@@ -298,6 +298,7 @@ def extract_topics_no_new_vocab_computation(corpus: list[str], vocab: list[str],
     centroid_arr = np.array(list(centroid_dict.values()))
     if centroid_arr.ndim == 1:
         centroid_arr = centroid_arr.reshape(-1, 1)  #质心个数为1的时候
+    assert centroid_dict, "没有提取到质心，应该是哪里有问题"
     dim_red_centroids = umap_mapper.transform(np.array(list(centroid_dict.values())))  # map the centroids to low dimensional space
 
     dim_red_centroid_dict = {label: centroid for label, centroid in zip(centroid_dict.keys(), dim_red_centroids)}
@@ -645,10 +646,10 @@ def describe_and_name_topics(
     if topword_method not in ["tfidf", "cosine_similarity"]:
         raise ValueError("topword_method can only be 'tfidf' or 'cosine_similarity'")
    
-    for topic in tqdm(topics):
-        tws = topic.top_words[topword_method]
+    for topic in tqdm(topics,desc="聚类主题解释和描述"):  #eg: topic:实例
+        tws = topic.top_words[topword_method]  #该topic下的单词
         try: 
-            topic_name = enhancer.generate_topic_name_str(tws, n_words = n_words)
+            topic_name = enhancer.generate_topic_name_str(tws, n_words = n_words)  #生成topic的名称，根据提供的topic下的词语
             topic_description = enhancer.describe_topic_topwords_str(tws, n_words = n_words)
         except Exception as e:
             print(f"Error in topic {topic.topic_idx}: {e}")

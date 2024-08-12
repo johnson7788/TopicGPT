@@ -57,6 +57,8 @@ class Clustering_and_DimRed():
         if isinstance(number_clusters_hdbscan, int) and number_clusters_hdbscan <  min_cluster_size_hdbscan:
             # 类别的最小数量必须大于类别数量
             min_cluster_size_hdbscan = int(number_clusters_hdbscan /2)
+            if min_cluster_size_hdbscan == 1: # 最小聚类数量不能为1
+                min_cluster_size_hdbscan = 2
         self.random_state = random_state
         self.verbose = verbose
         self.UMAP_hyperparams = UMAP_hyperparams  #{'n_components': 5}
@@ -91,8 +93,8 @@ class Clustering_and_DimRed():
                 - umap_mapper (umap.UMAP): UMAP mapper for transforming new embeddings, especially embeddings of the vocabulary. (MAKE SURE TO NORMALIZE EMBEDDINGS AFTER USING THE MAPPER)
         """
         # 使用UMAP的超参数，注意检查超参数
-        mapper = umap.UMAP(**self.UMAP_hyperparams).fit(embeddings)
-        dim_red_embeddings = mapper.transform(embeddings)
+        mapper = umap.UMAP(**self.UMAP_hyperparams).fit(embeddings)   #embeddings: [document_num, hidden_size]
+        dim_red_embeddings = mapper.transform(embeddings)   #开始降维 [document_num,dimension], eg: [23,5]
         dim_red_embeddings = dim_red_embeddings/np.linalg.norm(dim_red_embeddings, axis=1).reshape(-1,1)
         return dim_red_embeddings, mapper
     
@@ -110,6 +112,9 @@ class Clustering_and_DimRed():
         """
         ## 使用 HDBSCAN 进行聚类
         labels = self.hdbscan.fit_predict(embeddings)
+        if np.all(labels == -1):
+            print(f"聚类后所有数据都是离群点，请检查数据或调整参数")
+            raise Exception(f"聚类后所有数据都是离群点，请检查数据或调整参数")
         outliers = np.where(labels == -1)[0]
         ## 找到所有的离群点（标签为 -1）
         if self.number_clusters_hdbscan is not None:
@@ -141,7 +146,7 @@ class Clustering_and_DimRed():
         """
 
         dim_red_embeddings, umap_mapper = self.reduce_dimensions_umap(embeddings)
-        clusters = self.cluster_hdbscan(dim_red_embeddings)
+        clusters = self.cluster_hdbscan(dim_red_embeddings)  #clusters是聚类的类别信息
         return dim_red_embeddings, clusters, umap_mapper
     
     def visualize_clusters_static(self, embeddings: np.ndarray, labels: np.ndarray):

@@ -28,25 +28,39 @@ class GetEmbeddingsLocal:
         self.embedding_model = embedding_model
         self.max_tokens = max_tokens
 
-    def num_tokens_from_string(self, string: str) -> int:
+    def encoding_for_model(self, text: str) -> int:
         """
-        Returns the number of tokens in a text string.
+        给定文本，生成input_id
 
         Args:
-            string (str): Text string to compute the number of tokens.
+            text (str): Text string to compute the number of tokens.
             encoding: A function to encode the string into tokens.
 
         Returns:
             int: Number of tokens in the text string.
         """
         url = f"{self.client_url}/api/tokenizer"
-        data = {"texts": string, "model":self.embedding_model}
+        data = {"texts": text, "model":self.embedding_model}
         # 提交form格式数据
         headers = {'content-type': 'application/json'}
         # 提交form格式数据tokenizer
         r = requests.post(url, data=json.dumps(data), headers=headers)
         res = r.json()
-        num_tokens = len(res["data"]["tokenize"]["input_ids"][0])
+        input_ids = res["data"]["tokenize"]["input_ids"][0]
+        return input_ids
+    def num_tokens_from_string(self, text: str) -> int:
+        """
+        Returns the number of tokens in a text string.
+
+        Args:
+            text (str): Text string to compute the number of tokens.
+            encoding: A function to encode the string into tokens.
+
+        Returns:
+            int: Number of tokens in the text string.
+        """
+        input_ids = self.encoding_for_model(text)
+        num_tokens = len(input_ids)
         return num_tokens
 
     def compute_number_of_tokens(self, corpus: list[str]) -> int:
