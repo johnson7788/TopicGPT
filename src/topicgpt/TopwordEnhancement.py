@@ -1,4 +1,3 @@
-import tiktoken
 from openai import OpenAI
 
 

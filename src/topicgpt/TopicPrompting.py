@@ -1,3 +1,5 @@
+import os
+
 import openai
 from openai import OpenAI
 import numpy as np
@@ -43,7 +45,7 @@ class TopicPrompting:
              openai_prompting_model: str = "gpt-3.5-turbo-16k", 
              max_context_length_promting: int = 16000, 
              openai_model_temperature_prompting: float = 0.5,
-             openai_embedding_model: str = "text-embedding-ada-002",
+             embedder: str = None,  # embedding的实例
              max_context_length_embedding: int = 8191, 
              basic_model_instruction: str = basic_model_instruction,
              corpus_instruction: str = "",
@@ -75,7 +77,7 @@ class TopicPrompting:
         self.openai_prompting_model = openai_prompting_model
         self.max_context_length_promting = max_context_length_promting
         self.openai_model_temperature_prompting = openai_model_temperature_prompting
-        self.openai_embedding_model = openai_embedding_model
+        self.embedder = embedder
         self.max_context_length_embedding = max_context_length_embedding    
         self.basic_model_instruction = basic_model_instruction
         self.corpus_instruction = f"下面是主题识别的语料库信息: {corpus_instruction}.\n"
@@ -412,7 +414,9 @@ class TopicPrompting:
 
         topic = self.topic_lis[topic_index]
 
-        query_embedding = self.client.embeddings.create(input = [query], model = self.openai_embedding_model)["data"][0]["embedding"]
+        # query_embedding = self.client.embeddings.create(input = [query], model = self.openai_embedding_model)["data"][0]["embedding"]
+        query_embedding = self.embedder.encoding_for_model(text = query)
+        query_embedding = np.array(query_embedding)
 
         query_similarities = topic.document_embeddings_hd @ query_embedding / (np.linalg.norm(topic.document_embeddings_hd, axis = 1) * np.linalg.norm(query_embedding))
 
@@ -420,10 +424,10 @@ class TopicPrompting:
         topk_docs = [topic.documents[i] for i in topk_doc_indices]
 
         # cut off documents that are too long
-        max_number_tokens = self.max_context_length_promting - len(tiktoken.encoding_for_model(self.openai_prompting_model).encode(self.basic_model_instruction + " " + self.corpus_instruction)) - 100
+        max_number_tokens = self.max_context_length_promting - len(self.embedder.encoding_for_model(self.basic_model_instruction + " " + self.corpus_instruction)) - 100
         n_tokens = 0
         for i, doc in enumerate(topk_docs):
-            encoded_doc = tiktoken.encoding_for_model(self.openai_prompting_model).encode(doc)
+            encoded_doc = self.embedder.encoding_for_model(doc)
             n_tokens += len(encoded_doc[:doc_cutoff_threshold])
             if n_tokens > max_number_tokens:
                 topk_docs = topk_docs[:i]
@@ -715,7 +719,7 @@ class TopicPrompting:
         assert len(keywords) > 1, "Need at least two keywords to split the topic! Otherwise use the split_topic_single_keyword function!"
         keyword_embeddings = []
         for keyword in keywords:
-            keyword_embeddings.append(self.client.embeddings.create(input = [keyword], model = self.openai_embedding_model)["data"][0]["embedding"])
+            keyword_embeddings.append(query_embedding = self.embedder.encoding_for_model(text = keyword))
         keyword_embeddings = np.array(keyword_embeddings)
 
         old_topic = self.topic_lis[topic_idx]
@@ -828,7 +832,7 @@ class TopicPrompting:
 
         umap_mapper = self.topic_lis[0].umap_mapper
 
-        keyword_embedding_hd = self.client.embeddings.create(input = [keyword], model = self.openai_embedding_model)["data"][0]["embedding"]
+        keyword_embedding_hd = self.embedder.encoding_for_model(text = keyword)
         keyword_embedding_hd = np.array(keyword_embedding_hd).reshape(1, -1)
         keyword_embedding_ld = umap_mapper.transform(keyword_embedding_hd)[0]
 
@@ -970,7 +974,7 @@ class TopicPrompting:
             dict: A dictionary with topic indices as keys and their descriptions as values.
         """
 
-        max_number_tokens = self.max_context_length_promting - len(tiktoken.encoding_for_model(self.openai_prompting_model).encode(self.basic_model_instruction + " " + self.corpus_instruction)) - 100
+        max_number_tokens = self.max_context_length_promting - len(self.embedder.encoding_for_model(self.basic_model_instruction + " " + self.corpus_instruction)) - 100
 
         topic_info = {} # dictionary with the topic indices as keys and the topic descriptions as values
 
@@ -1231,13 +1235,19 @@ class TopicPrompting:
 
         functions = [self.function_descriptions[key] for key in self.function_descriptions.keys()]
         for num in range(n_tries):
-            try: 
-                response_message = self.client.chat.completions.create(model = self.openai_prompting_model,
-                messages = messages,
-                functions = functions,
-                function_call = "auto").choices[0].message
-
-                # Step 2: check if GPT wanted to call a function
+            try:
+                import pickle
+                if os.path.exists("cache_function.pkl"):
+                    with open("cache_function.pkl", "rb") as f:
+                        response_message = pickle.load(f)
+                else:
+                    response_message = self.client.chat.completions.create(model = self.openai_prompting_model,
+                        messages = messages,
+                        functions = functions,
+                        function_call = "auto").choices[0].message
+                    with open("cache_function.pkl", "wb") as f:
+                        pickle.dump(response_message, f)
+                # # Step 2: check if GPT wanted to call a function
                 function_call = response_message.function_call
                 if function_call is not None:
                     print("GPT wants to the call the function: ", function_call)

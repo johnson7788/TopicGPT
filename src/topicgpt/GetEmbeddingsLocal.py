@@ -1,5 +1,3 @@
-from openai import OpenAI
-import tiktoken
 import requests
 from tqdm import tqdm
 import json
