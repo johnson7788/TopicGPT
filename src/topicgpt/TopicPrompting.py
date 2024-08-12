@@ -415,8 +415,8 @@ class TopicPrompting:
         topic = self.topic_lis[topic_index]
 
         # query_embedding = self.client.embeddings.create(input = [query], model = self.openai_embedding_model)["data"][0]["embedding"]
-        query_embedding = self.embedder.encoding_for_model(text = query)
-        query_embedding = np.array(query_embedding)
+        query_embedding_list = self.embedder.create_embedding(text = [query])
+        query_embedding = np.array(query_embedding_list)
 
         query_similarities = topic.document_embeddings_hd @ query_embedding / (np.linalg.norm(topic.document_embeddings_hd, axis = 1) * np.linalg.norm(query_embedding))
 
@@ -719,7 +719,7 @@ class TopicPrompting:
         assert len(keywords) > 1, "Need at least two keywords to split the topic! Otherwise use the split_topic_single_keyword function!"
         keyword_embeddings = []
         for keyword in keywords:
-            keyword_embeddings.append(query_embedding = self.embedder.encoding_for_model(text = keyword))
+            keyword_embeddings.append(query_embedding = self.embedder.create_embedding(text = [keyword]))
         keyword_embeddings = np.array(keyword_embeddings)
 
         old_topic = self.topic_lis[topic_idx]
@@ -832,7 +832,7 @@ class TopicPrompting:
 
         umap_mapper = self.topic_lis[0].umap_mapper
 
-        keyword_embedding_hd = self.embedder.encoding_for_model(text = keyword)
+        keyword_embedding_hd = self.embedder.create_embedding(text = [keyword])
         keyword_embedding_hd = np.array(keyword_embedding_hd).reshape(1, -1)
         keyword_embedding_ld = umap_mapper.transform(keyword_embedding_hd)[0]
 

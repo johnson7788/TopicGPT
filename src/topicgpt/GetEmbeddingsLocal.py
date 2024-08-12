@@ -119,7 +119,7 @@ class GetEmbeddingsLocal:
                 split_text.append([document])
         return split_text   
 
-    def make_api_call(self, text: str):
+    def create_embedding(self, text: str):
         """
         Makes an API call to the OpenAI API to embed a text string.
 
@@ -163,7 +163,7 @@ class GetEmbeddingsLocal:
                 for i in range(n_tries + 1):
                     try: 
                         api_res_doc.append(
-                            {"api_res": self.make_api_call(chunk), 
+                            {"api_res": self.create_embedding(chunk),
                             "error": None }
                          )
                         break
