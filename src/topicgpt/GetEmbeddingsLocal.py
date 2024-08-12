@@ -46,6 +46,24 @@ class GetEmbeddingsLocal:
         res = r.json()
         input_ids = res["data"]["tokenize"]["input_ids"][0]
         return input_ids
+    def decoding_for_model(self, input_ids: list[int]) -> str:
+        """
+        根据input_id生成文本
+
+        Args:
+            input_ids (str): Text string to compute the number of tokens.
+        Returns:
+            文本
+        """
+        url = f"{self.client_url}/api/detokenizer"
+        data = {"input_ids": input_ids, "model":self.embedding_model}
+        # 提交form格式数据
+        headers = {'content-type': 'application/json'}
+        # 提交form格式数据tokenizer
+        r = requests.post(url, data=json.dumps(data), headers=headers)
+        res = r.json()
+        input_text_dict = res["data"]
+        return input_text_dict
     def num_tokens_from_string(self, text: str) -> int:
         """
         Returns the number of tokens in a text string.

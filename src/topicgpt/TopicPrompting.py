@@ -414,21 +414,21 @@ class TopicPrompting:
 
         topic = self.topic_lis[topic_index]
 
-        # query_embedding = self.client.embeddings.create(input = [query], model = self.openai_embedding_model)["data"][0]["embedding"]
-        query_embedding_list = self.embedder.create_embedding(text = [query])
-        query_embedding = np.array(query_embedding_list)
-
+        query_embedding_response = self.embedder.create_embedding(text = query)  #query是某个词
+        query_embedding_list = query_embedding_response["data"][0]["embedding"]
+        query_embedding = np.array(query_embedding_list) #[768]
+        # topic.document_embeddings_hd: 形状是[12,768] 代表12个文档，每个文档756维
         query_similarities = topic.document_embeddings_hd @ query_embedding / (np.linalg.norm(topic.document_embeddings_hd, axis = 1) * np.linalg.norm(query_embedding))
 
-        topk_doc_indices = np.argsort(query_similarities)[::-1][:k]
-        topk_docs = [topic.documents[i] for i in topk_doc_indices]
+        topk_doc_indices = np.argsort(query_similarities)[::-1][:k]  #topk个相似的文档
+        topk_docs = [topic.documents[i] for i in topk_doc_indices]  #获取
 
         # cut off documents that are too long
         max_number_tokens = self.max_context_length_promting - len(self.embedder.encoding_for_model(self.basic_model_instruction + " " + self.corpus_instruction)) - 100
         n_tokens = 0
         for i, doc in enumerate(topk_docs):
             encoded_doc = self.embedder.encoding_for_model(doc)
-            n_tokens += len(encoded_doc[:doc_cutoff_threshold])
+            n_tokens += len(encoded_doc[:doc_cutoff_threshold])  # 如果长度过长，对文档进行切分
             if n_tokens > max_number_tokens:
                 topk_docs = topk_docs[:i]
                 topk_doc_indices = topk_doc_indices[:i]
@@ -436,10 +436,7 @@ class TopicPrompting:
             if len(encoded_doc) > doc_cutoff_threshold:
                 encoded_doc = encoded_doc[:doc_cutoff_threshold]
                 topk_docs[i] = tiktoken.encoding_for_model(self.openai_prompting_model).decode(encoded_doc)
-
-
-
-
+        # topk_docs: list, 文档内容,  # 文档的索引
         return topk_docs, [int(elem) for elem in topk_doc_indices]
 
     def prompt_knn_search(self, llm_query: str, topic_index: int = None, n_tries: int = 3) -> tuple[str, tuple[list[str], list[int]]]:
@@ -719,7 +716,10 @@ class TopicPrompting:
         assert len(keywords) > 1, "Need at least two keywords to split the topic! Otherwise use the split_topic_single_keyword function!"
         keyword_embeddings = []
         for keyword in keywords:
-            keyword_embeddings.append(query_embedding = self.embedder.create_embedding(text = [keyword]))
+            query_embedding_response = self.embedder.create_embedding(text=keyword)  # query是某个词
+            query_embedding_list = query_embedding_response["data"][0]["embedding"]
+            query_embedding = np.array(query_embedding_list)  # [768]
+            keyword_embeddings.append(query_embedding)
         keyword_embeddings = np.array(keyword_embeddings)
 
         old_topic = self.topic_lis[topic_idx]
@@ -832,7 +832,9 @@ class TopicPrompting:
 
         umap_mapper = self.topic_lis[0].umap_mapper
 
-        keyword_embedding_hd = self.embedder.create_embedding(text = [keyword])
+        query_embedding_response = self.embedder.create_embedding(text=keyword)  # query是某个词
+        query_embedding_list = query_embedding_response["data"][0]["embedding"]
+        keyword_embedding_hd = np.array(query_embedding_list)  # [768]
         keyword_embedding_hd = np.array(keyword_embedding_hd).reshape(1, -1)
         keyword_embedding_ld = umap_mapper.transform(keyword_embedding_hd)[0]
 
@@ -1271,7 +1273,7 @@ class TopicPrompting:
                             "content": function_response_json,
                         }
                     )  # extend conversation with function response
-
+                    # 函数调用的结果，再次尝试调用ChatGPT，获取最终的结果
                     second_response = self.client.chat.completions.create(model=self.openai_prompting_model,
                     messages=messages)  # get a new response from GPT where it can see the function response
                 elif num == n_tries-1:
