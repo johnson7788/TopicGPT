@@ -12,6 +12,7 @@ from topicgpt.Client import Client
 import topicgpt.TopicRepresentation as TopicRepresentation
 
 embeddings_path= "SavedEmbeddings/embeddings.pkl" #global variable for the path to the embeddings
+topic_path= "SavedEmbeddings/topic.pkl" #global variable for the path to the embeddings
 
 class TopicGPT:
     """
@@ -40,6 +41,8 @@ class TopicGPT:
              compute_vocab_hyperparams: dict = {},
              enhancer: TopwordEnhancement = None,
              topic_prompting: TopicPrompting = None,
+             use_saved_topics: bool = True, #使用缓存
+             path_saved_topics: str = topic_path,
              verbose: bool = True) -> None:
         
         """
@@ -96,12 +99,15 @@ class TopicGPT:
         self.enhancer = enhancer
         self.topic_prompting = topic_prompting	
         self.use_saved_embeddings = use_saved_embeddings
+        self.use_saved_topics = use_saved_topics
+        self.path_saved_topics = path_saved_topics
         self.verbose = verbose
 
         self.compute_vocab_hyperparams["verbose"] = self.verbose
         
         # if embeddings have already been downloaded to the folder SavedEmbeddings, then load them
         if self.use_saved_embeddings and os.path.exists(path_saved_embeddings):
+            print(f"使用已保存的嵌入文件: {path_saved_embeddings}")
             with open(path_saved_embeddings, "rb") as f:
                 self.document_embeddings, self.vocab_embeddings = pickle.load(f)
 
@@ -237,28 +243,33 @@ class TopicGPT:
         if verbose:
             print("Removed " + str(len_before_removing - len_after_removing) + " empty documents.")
 
-        if self.vocab_embeddings is None:
-            if verbose:
-                print("Computing vocabulary...")
-
-            self.vocab = self.extractor.compute_corpus_vocab(self.corpus, **self.compute_vocab_hyperparams)
+        if self.use_saved_topics and os.path.exists(self.path_saved_topics):
+            with open(self.path_saved_topics, "rb") as f:
+                self.topic_lis, self.vocab_embeddings, self.document_embeddings, self.vocab = pickle.load(f)
         else:
-            print('Vocab already computed')
-            self.vocab = list(self.vocab_embeddings.keys())
+            print(f"不使用缓存，重新计算主题")
+            if self.vocab_embeddings is None:
+                if verbose:
+                    print("Computing vocabulary...")
 
-        if self.vocab_embeddings is None or self.document_embeddings is None:  
+                self.vocab = self.extractor.compute_corpus_vocab(self.corpus, **self.compute_vocab_hyperparams)
+            else:
+                print('Vocab already computed')
+                self.vocab = list(self.vocab_embeddings.keys())
+
+            if self.vocab_embeddings is None or self.document_embeddings is None:
+                if verbose:
+                    print("计算单词表向量和文档向量")
+                self.compute_embeddings(corpus=self.corpus)
+            else:
+                print('Embeddings already computed')
             if verbose:
-                print("计算单词表向量和文档向量")
-            self.compute_embeddings(corpus = self.corpus)
-        else:
-            print('Embeddings already computed')
-        if verbose: 
-            print("Extracting topics...")
-        self.topic_lis = self.extract_topics(corpus = self.corpus)
-        # self.topic_lis: [Topic: 0, Topic: 1]
-        if verbose:
-            print("使用LLM解释聚类后生成的主题")
-        self.topic_lis = self.describe_topics(topics = self.topic_lis)
+                print("Extracting topics...")
+            self.topic_lis = self.extract_topics(corpus = self.corpus)
+            # self.topic_lis: [Topic: 0, Topic: 1]
+            if verbose:
+                print("使用LLM解释聚类后生成的主题")
+            self.topic_lis = self.describe_topics(topics = self.topic_lis)
 
         self.topic_prompting.topic_lis = self.topic_lis
         self.topic_prompting.vocab_embeddings = self.vocab_embeddings
@@ -362,15 +373,30 @@ class TopicGPT:
         Args:
             path (str, optional): The path to save the embeddings to. Defaults to embeddings_path.
         """
-
-
+        print(f"保存embedding到{path}")
         assert self.document_embeddings is not None and self.vocab_embeddings is not None, "You need to compute the embeddings first."
 
         # create dictionary if it doesn't exist yet 
         if not os.path.exists("SavedEmbeddings"):
             os.makedirs("SavedEmbeddings")
-
-
         with open(path, "wb") as f:
             pickle.dump([self.document_embeddings, self.vocab_embeddings], f)
+        print(f"保存embedding到{path}成功")
+    def save_topics(self, path: str = topic_path) -> None:
+        """
+        保存主题相关到本地
 
+        Args:
+            path (str, optional): The path to save the embeddings to. Defaults to embeddings_path.
+        """
+        print(f"保存主题到{path}")
+        assert self.topic_lis is not None and self.vocab_embeddings is not None, "你应该先计算好主题，然后保存主题"
+        assert self.document_embeddings is not None and self.vocab is not None, "你应该先计算好主题，然后保存主题"
+
+        # create dictionary if it doesn't exist yet
+        if not os.path.exists("SavedEmbeddings"):
+            os.makedirs("SavedEmbeddings")
+
+        with open(path, "wb") as f:
+            pickle.dump([self.topic_lis, self.vocab_embeddings, self.document_embeddings,self.vocab], f)
+        print(f"保存主题到{path}成功")

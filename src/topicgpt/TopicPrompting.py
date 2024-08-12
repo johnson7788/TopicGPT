@@ -1230,7 +1230,7 @@ class TopicPrompting:
             ]
 
         functions = [self.function_descriptions[key] for key in self.function_descriptions.keys()]
-        for _ in range(n_tries):
+        for num in range(n_tries):
             try: 
                 response_message = self.client.chat.completions.create(model = self.openai_prompting_model,
                 messages = messages,
@@ -1264,6 +1264,8 @@ class TopicPrompting:
 
                     second_response = self.client.chat.completions.create(model=self.openai_prompting_model,
                     messages=messages)  # get a new response from GPT where it can see the function response
+                elif num == n_tries-1:
+                    print("已经尝试到了最大的次数，仍然没有function_call的信息被生成，将退出，请检查LLM模型的智力")
             except (TypeError, ValueError, openai.APIError, openai.APIConnectionError) as error:
                 print("Error occured: ", error)
                 print("Trying again...")
