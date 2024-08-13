@@ -12,34 +12,35 @@ from topicgpt.TopicRepresentation import Topic
 from topicgpt.Client import Client
 import topicgpt.TopicRepresentation as TopicRepresentation
 
+
 class TopicGPT:
     def __init__(self,
-             api_key: str = "",
-             base_url: str = "",
-             http_client=None,
-             azure_endpoint: dict = {},
-             n_topics: int = None,
-             openai_prompting_model: str = "gpt-3.5-turbo-16k",
-             max_number_of_tokens: int = 16384,
-             corpus_instruction: str = "",
-             document_embeddings: np.ndarray = None,
-             vocab_embeddings: dict[str, np.ndarray] = None,
-             embedding_client_url: str = None,
-             embedding_model: str = "text-embedding-ada-002",
-             max_number_of_tokens_embedding: int = 8191,
-             use_saved_embeddings: bool = True,
-             path_saved_embeddings: str = "",
-             clusterer: Clustering_and_DimRed = None,
-             n_topwords: int = 2000,
-             n_topwords_description: int = 500,
-             topword_extraction_methods: list[str] = ["tfidf", "cosine_similarity"],
-             compute_vocab_hyperparams: dict = {},
-             enhancer: TopwordEnhancement = None,
-             topic_prompting: TopicPrompting = None,
-             use_saved_topics: bool = True, #使用缓存
-             path_saved_topics: str = "",
-             verbose: bool = True) -> None:
-        
+                 api_key: str = "",
+                 base_url: str = "",
+                 http_client=None,
+                 azure_endpoint: dict = {},
+                 n_topics: int = None,
+                 openai_prompting_model: str = "gpt-3.5-turbo-16k",
+                 max_number_of_tokens: int = 16384,
+                 corpus_instruction: str = "",
+                 document_embeddings: np.ndarray = None,
+                 vocab_embeddings: dict[str, np.ndarray] = None,
+                 embedding_client_url: str = None,
+                 embedding_model: str = "text-embedding-ada-002",
+                 max_number_of_tokens_embedding: int = 8191,
+                 use_saved_embeddings: bool = True,
+                 path_saved_embeddings: str = "",
+                 clusterer: Clustering_and_DimRed = None,
+                 n_topwords: int = 2000,
+                 n_topwords_description: int = 500,
+                 topword_extraction_methods: list[str] = ["tfidf", "cosine_similarity"],
+                 compute_vocab_hyperparams: dict = {},
+                 enhancer: TopwordEnhancement = None,
+                 topic_prompting: TopicPrompting = None,
+                 use_saved_topics: bool = True,  # 使用缓存
+                 path_saved_topics: str = "",
+                 verbose: bool = True) -> None:
+
         """
         初始化TopicGPT
         Args:
@@ -63,19 +64,20 @@ class TopicGPT:
             topic_prompting (TopicPrompting, optional)：用于制定提示的主题提示对象。在 “TopicPrompting/TopicPrompting.py” 文件夹中查找该类。如果为 None，则使用具有默认参数的主题提示对象。如果在此处指定了 OpenAI 模型，它将覆盖用于主题描述的 openai_prompting_model 参数。
             verbose (bool, optional)：是否打印关于过程的详细信息。这可以通过传递的对象中的参数进行覆盖。
         """
-        #参数的检查
+        # 参数的检查
         assert api_key is not None, "您需要提供一个 OpenAI API 密钥。"
         assert n_topics is None or n_topics > 0, "主题数量需要是一个正整数。"
         assert max_number_of_tokens > 0, "最大 token 数量需要是一个正整数。"
         assert max_number_of_tokens_embedding > 0, "嵌入模型的最大 token 数量需要是一个正整数。"
         assert n_topwords > 0, "top words 的数量需要是一个正整数。"
         assert n_topwords_description > 0, "用于主题描述的 top words 数量需要是一个正整数。"
-        assert len(topword_extraction_methods) > 0, "您需要提供至少一种 topword 提取方法。tfidf或者cosine_similarity或topword_enhancement"
+        assert len(
+            topword_extraction_methods) > 0, "您需要提供至少一种 topword 提取方法。tfidf或者cosine_similarity或topword_enhancement"
         assert n_topwords_description <= n_topwords, "用于主题描述的 top words 数量需要小于或等于 top words 的数量。"
         self.api_key = api_key
         self.base_url = base_url
         self.azure_endpoint = azure_endpoint
-        self.client = Client(api_key = api_key, base_url=base_url, azure_endpoint = azure_endpoint,http_client=http_client)
+        self.client = Client(api_key=api_key, base_url=base_url, azure_endpoint=azure_endpoint, http_client=http_client)
         self.n_topics = n_topics
         self.openai_prompting_model = openai_prompting_model
         self.max_number_of_tokens = max_number_of_tokens
@@ -84,20 +86,20 @@ class TopicGPT:
         self.vocab_embeddings = vocab_embeddings
         self.embedding_model = embedding_model
         self.max_number_of_tokens_embedding = max_number_of_tokens_embedding
-        self.embedder = GetEmbeddingsLocal(client_url=embedding_client_url, embedding_model=embedding_model, max_tokens = self.max_number_of_tokens_embedding)
+        self.embedder = GetEmbeddingsLocal(client_url=embedding_client_url, embedding_model=embedding_model,
+                                           max_tokens=self.max_number_of_tokens_embedding)
         self.clusterer = clusterer
         self.n_topwords = n_topwords
         self.n_topwords_description = n_topwords_description
         self.topword_extraction_methods = topword_extraction_methods
         self.compute_vocab_hyperparams = compute_vocab_hyperparams
         self.enhancer = enhancer
-        self.topic_prompting = topic_prompting	
+        self.topic_prompting = topic_prompting
         self.use_saved_embeddings = use_saved_embeddings
         self.use_saved_topics = use_saved_topics
         self.path_saved_embeddings = path_saved_embeddings
         self.path_saved_topics = path_saved_topics
         self.verbose = verbose
-
 
         self.compute_vocab_hyperparams["verbose"] = self.verbose
 
@@ -108,24 +110,32 @@ class TopicGPT:
                 self.document_embeddings, self.vocab_embeddings = pickle.load(f)
 
         for elem in topword_extraction_methods:
-            assert elem in ["tfidf", "cosine_similarity", "topword_enhancement"], "Invalid topword extraction method. Valid methods are 'tfidf', 'cosine_similarity', and 'topword_enhancement'."
-        
+            assert elem in ["tfidf", "cosine_similarity",
+                            "topword_enhancement"], "Invalid topword extraction method. Valid methods are 'tfidf', 'cosine_similarity', and 'topword_enhancement'."
+
         if clusterer is None:
-            self.clusterer = Clustering_and_DimRed(number_clusters_hdbscan = self.n_topics, verbose = self.verbose)
+            self.clusterer = Clustering_and_DimRed(number_clusters_hdbscan=self.n_topics, verbose=self.verbose)
         else:
             self.n_topics = clusterer.number_clusters_hdbscan
-        
+
         if enhancer is None:
-            self.enhancer = TopwordEnhancement(client = self.client, openai_model = self.openai_prompting_model, max_context_length = self.max_number_of_tokens, corpus_instruction = self.corpus_instruction, embedder=self.embedder)
+            self.enhancer = TopwordEnhancement(client=self.client, openai_model=self.openai_prompting_model,
+                                               max_context_length=self.max_number_of_tokens,
+                                               corpus_instruction=self.corpus_instruction, embedder=self.embedder)
 
         if topic_prompting is None:
-            self.topic_prompting = TopicPrompting(topic_lis = [], client = self.client, openai_prompting_model = self.openai_prompting_model,  max_context_length_promting = 16000, enhancer = self.enhancer, embedder=self.embedder, max_context_length_embedding = self.max_number_of_tokens_embedding, corpus_instruction = corpus_instruction)
-        
+            self.topic_prompting = TopicPrompting(topic_lis=[], client=self.client,
+                                                  openai_prompting_model=self.openai_prompting_model,
+                                                  max_context_length_promting=16000, enhancer=self.enhancer,
+                                                  embedder=self.embedder,
+                                                  max_context_length_embedding=self.max_number_of_tokens_embedding,
+                                                  corpus_instruction=corpus_instruction)
+
         self.extractor = ExtractTopWords()
-    
+
     def __repr__(self) -> str:
         repr = "TopicGPT object with the following parameters:\n"
-        repr += "-"*150 + "\n"
+        repr += "-" * 150 + "\n"
         repr += "n_topics: " + str(self.n_topics) + "\n"
         repr += "openai_prompting_model: " + self.openai_prompting_model + "\n"
         repr += "max_number_of_tokens: " + str(self.max_number_of_tokens) + "\n"
@@ -154,13 +164,12 @@ class TopicGPT:
                 - vocab_embeddings (dict[str, np.ndarray]): Vocabulary embeddings for the corpus, provided as a dictionary where keys are words and values are embeddings.
         """
 
-        
         self.document_embeddings = self.embedder.get_embeddings(corpus)["embeddings"]
 
-        self.vocab_embeddings = self.extractor.embed_vocab_openAI(self.client, self.vocab, embedder = self.embedder)
+        self.vocab_embeddings = self.extractor.embed_vocab_openAI(self.client, self.vocab, embedder=self.embedder)
 
         return self.document_embeddings, self.vocab_embeddings
-    
+
     def extract_topics(self, corpus: list[str]) -> list[Topic]:
         """
         Extracts topics from the given corpus.
@@ -174,22 +183,22 @@ class TopicGPT:
 
         assert self.document_embeddings is not None and self.vocab_embeddings is not None, "You need to compute the embeddings first."
 
-        if self.vocab is None: 
+        if self.vocab is None:
             self.vocab = self.extractor.compute_corpus_vocab(self.corpus, **self.compute_vocab_hyperparams)
-        
+
         self.topic_lis = TopicRepresentation.extract_topics_no_new_vocab_computation(
-            corpus = corpus,  #list[str]
-            vocab = self.vocab, #list[str]
-            document_embeddings = self.document_embeddings,  #ndarry, [document_num, embedding_size]
-            clusterer = self.clusterer,  #聚类和降维度算法
-            vocab_embeddings = self.vocab_embeddings,  #每个词的嵌入
-            n_topwords = self.n_topwords,   #2000？
-            topword_extraction_methods = self.topword_extraction_methods,  #['tfidf', 'cosine_similarity']
-            consider_outliers = True
+            corpus=corpus,  # list[str]
+            vocab=self.vocab,  # list[str]
+            document_embeddings=self.document_embeddings,  # ndarry, [document_num, embedding_size]
+            clusterer=self.clusterer,  # 聚类和降维度算法
+            vocab_embeddings=self.vocab_embeddings,  # 每个词的嵌入
+            n_topwords=self.n_topwords,  # 2000？
+            topword_extraction_methods=self.topword_extraction_methods,  # ['tfidf', 'cosine_similarity']
+            consider_outliers=True
         )
 
         return self.topic_lis
-    
+
     def describe_topics(self, topics: list[Topic]) -> list[Topic]:
         """
         Names and describes the provided topics using the OpenAI API.
@@ -201,7 +210,6 @@ class TopicGPT:
             list[Topic]: A list of Topic objects with names and descriptions.
         """
 
-
         assert self.topic_lis is not None, "You need to extract the topics first."
 
         if "cosine_similarity" in self.topword_extraction_methods:
@@ -212,10 +220,10 @@ class TopicGPT:
             raise ValueError("You need to use either 'cosine_similarity' or 'tfidf' as topword extraction method.")
 
         self.topic_lis = TopicRepresentation.describe_and_name_topics(
-            topics = topics,
-            enhancer = self.enhancer,
-            topword_method= topword_method,
-            n_words = self.n_topwords_description
+            topics=topics,
+            enhancer=self.enhancer,
+            topword_method=topword_method,
+            n_words=self.n_topwords_description
         )
 
         return self.topic_lis
@@ -226,7 +234,8 @@ class TopicGPT:
         """
         if self.use_saved_topics and os.path.exists(self.path_saved_topics):
             with open(self.path_saved_topics, "rb") as f:
-                self.topic_lis, self.vocab_embeddings, self.document_embeddings, self.vocab, self.corpus, self.topic_lis = pickle.load(f)
+                self.topic_lis, self.vocab_embeddings, self.document_embeddings, self.vocab, self.corpus, self.topic_lis = pickle.load(
+                    f)
             return True
         else:
             print(f"没有找到缓存的主题模型，请先训练主题模型。{self.path_saved_topics}")
@@ -270,11 +279,11 @@ class TopicGPT:
                 print('Embeddings already computed')
             if verbose:
                 print("Extracting topics...")
-            self.topic_lis = self.extract_topics(corpus = self.corpus)
+            self.topic_lis = self.extract_topics(corpus=self.corpus)
             # self.topic_lis: [Topic: 0, Topic: 1]
             if verbose:
                 print("使用LLM解释聚类后生成的主题")
-            self.topic_lis = self.describe_topics(topics = self.topic_lis)
+            self.topic_lis = self.describe_topics(topics=self.topic_lis)
 
         self.topic_prompting.topic_lis = self.topic_lis
         self.topic_prompting.vocab_embeddings = self.vocab_embeddings
@@ -290,20 +299,22 @@ class TopicGPT:
             获取每个主题的名称。
             调用 visualize_clusters_dynamic 函数绘制动态聚类可视化。
         """
-        #确保已提取主题
+        # 确保已提取主题
         assert self.topic_lis is not None, "请先提取主题"
         # 合并所有主题的文档嵌入（document_embeddings_hd）。 形状[document_nums, hidden_size)
-        all_document_embeddings = np.concatenate([topic.document_embeddings_hd for topic in self.topic_lis], axis = 0)
-        #合并所有文档文本。 list[str]
-        all_texts = np.concatenate([topic.documents for topic in self.topic_lis], axis = 0)
+        all_document_embeddings = np.concatenate([topic.document_embeddings_hd for topic in self.topic_lis], axis=0)
+        # 合并所有文档文本。 list[str]
+        all_texts = np.concatenate([topic.documents for topic in self.topic_lis], axis=0)
         # 生成文档的索引。主题的类别序号，eg: [0 0 0 0 0 0 0 0 0 0 0 0 1 1 1 1 1 1 1 1 1]
-        all_document_indices = np.concatenate([np.repeat(i, topic.document_embeddings_hd.shape[0]) for i, topic in enumerate(self.topic_lis)], axis = 0)
+        all_document_indices = np.concatenate(
+            [np.repeat(i, topic.document_embeddings_hd.shape[0]) for i, topic in enumerate(self.topic_lis)], axis=0)
         # 获取每个主题的名称。list[str], eg: ['Topic 0: \n"Convenient meal delivery service"\n', 'Topic 1: \nTitle: Online Food Ordering Convenience\n']
         class_names = [str(topic) for topic in self.topic_lis]
         # 降维到2D
         embeddings_2d = self.clusterer.visualize_2D_data_prepare(embeddings=all_document_embeddings)
         # 调用 visualize_clusters_dynamic 函数绘制动态聚类可视化。
         return all_document_embeddings, all_document_indices, all_texts, class_names, embeddings_2d
+
     def visualize_clusters(self):
         """
         该函数用于可视化已识别的聚类，展示主题的散点图。
@@ -314,11 +325,12 @@ class TopicGPT:
             获取每个主题的名称。
             调用 visualize_clusters_dynamic 函数绘制动态聚类可视化。
         """
-        #确保已提取主题
+        # 确保已提取主题
         all_document_embeddings, all_document_indices, all_texts, class_names = self.visualize_clusters_prepare_data()
         # 调用 visualize_clusters_dynamic 函数绘制动态聚类可视化。
         self.clusterer.visualize_clusters_dynamic(all_document_embeddings, all_document_indices, all_texts, class_names)
         return True
+
     def repr_topics(self) -> str:
         """
         返回所有主题的摘要。
@@ -339,7 +351,7 @@ class TopicGPT:
             repr += "Topic_description: " + topic.topic_description + "\n"
             repr += "Top words: " + str(topic.top_words[topword_method][:10]) + "\n"
             repr += "\n"
-            repr += "-"*150 + "\n"
+            repr += "-" * 150 + "\n"
 
         return repr
 
@@ -365,7 +377,6 @@ class TopicGPT:
             Please refer to the TopicPrompting class for more details on available functions for prompting the model.
         """
 
-
         result = self.topic_prompting.general_prompt(query)
 
         answer = result[0][-1].choices[0].message.content
@@ -374,7 +385,7 @@ class TopicGPT:
         self.topic_lis = self.topic_prompting.topic_lis
 
         return answer, function_result
-    
+
     def pprompt(self, query: str, return_function_result: bool = True) -> object:
         """
         Prompts the model with the given query and prints the answer.
@@ -387,14 +398,13 @@ class TopicGPT:
             object: The result of the function call if return_function_result is True, otherwise None.
         """
 
-
         answer, function_result = self.prompt(query)
 
         print(answer)
 
         if return_function_result:
             return function_result
-        
+
     def save_embeddings(self, path: str = None) -> None:
         """
         Saves the document and vocabulary embeddings to a pickle file for later re-use.
@@ -413,6 +423,7 @@ class TopicGPT:
         with open(path, "wb") as f:
             pickle.dump([self.document_embeddings, self.vocab_embeddings], f)
         print(f"保存embedding到{path}成功")
+
     def save_topics(self, path: str = None) -> None:
         """
         保存主题相关到本地
@@ -431,7 +442,8 @@ class TopicGPT:
             os.makedirs("SavedEmbeddings")
 
         with open(path, "wb") as f:
-            pickle.dump([self.topic_lis, self.vocab_embeddings, self.document_embeddings,self.vocab, self.corpus, self.topic_lis], f)
+            pickle.dump([self.topic_lis, self.vocab_embeddings, self.document_embeddings, self.vocab, self.corpus,
+                         self.topic_lis], f)
         print(f"保存主题到{path}成功")
 
     def to_dict(self) -> Dict[str, Any]:
@@ -445,7 +457,8 @@ class TopicGPT:
             'max_number_of_tokens': self.max_number_of_tokens,
             'corpus_instruction': self.corpus_instruction,
             'document_embeddings': self.document_embeddings.tolist() if self.document_embeddings is not None else None,
-            'vocab_embeddings': {k: v.tolist() for k, v in self.vocab_embeddings.items()} if self.vocab_embeddings is not None else None,
+            'vocab_embeddings': {k: v.tolist() for k, v in
+                                 self.vocab_embeddings.items()} if self.vocab_embeddings is not None else None,
             'embedding_model': self.embedding_model,
             'max_number_of_tokens_embedding': self.max_number_of_tokens_embedding,
             'use_saved_embeddings': self.use_saved_embeddings,
@@ -473,8 +486,10 @@ class TopicGPT:
             openai_prompting_model=data.get('openai_prompting_model', "gpt-3.5-turbo-16k"),
             max_number_of_tokens=data.get('max_number_of_tokens', 16384),
             corpus_instruction=data.get('corpus_instruction', ""),
-            document_embeddings=np.array(data.get('document_embeddings')) if data.get('document_embeddings') is not None else None,
-            vocab_embeddings={k: np.array(v) for k, v in data.get('vocab_embeddings', {}).items()} if data.get('vocab_embeddings') is not None else None,
+            document_embeddings=np.array(data.get('document_embeddings')) if data.get(
+                'document_embeddings') is not None else None,
+            vocab_embeddings={k: np.array(v) for k, v in data.get('vocab_embeddings', {}).items()} if data.get(
+                'vocab_embeddings') is not None else None,
             embedding_model=data.get('embedding_model', "text-embedding-ada-002"),
             max_number_of_tokens_embedding=data.get('max_number_of_tokens_embedding', 8191),
             use_saved_embeddings=data.get('use_saved_embeddings', True),
