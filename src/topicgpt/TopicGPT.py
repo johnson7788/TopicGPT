@@ -215,7 +215,19 @@ class TopicGPT:
         )
 
         return self.topic_lis
-    
+
+    def load_cache_topics(self):
+        """
+        加载缓存的主题模型
+        """
+        if self.use_saved_topics and os.path.exists(self.path_saved_topics):
+            with open(self.path_saved_topics, "rb") as f:
+                self.topic_lis, self.vocab_embeddings, self.document_embeddings, self.vocab, self.corpus = pickle.load(f)
+            return True
+        else:
+            print(f"没有找到缓存的主题模型，请先训练主题模型。{self.path_saved_topics}")
+            return False
+
     def fit(self, corpus: list[str], verbose: bool = True):
         """
         Compute embeddings if necessary, extract topics, and describe them.
@@ -225,8 +237,7 @@ class TopicGPT:
             verbose (bool, optional): Whether to print the progress and details of the process.
         """
 
-        self.corpus = corpus 
-        
+        self.corpus = corpus
         # remove empty documents
         len_before_removing = len(self.corpus)
         while '' in self.corpus:
@@ -237,13 +248,12 @@ class TopicGPT:
 
         if self.use_saved_topics and os.path.exists(self.path_saved_topics):
             with open(self.path_saved_topics, "rb") as f:
-                self.topic_lis, self.vocab_embeddings, self.document_embeddings, self.vocab = pickle.load(f)
+                self.topic_lis, self.vocab_embeddings, self.document_embeddings, self.vocab, self.corpus = pickle.load(f)
         else:
             print(f"不使用缓存，重新计算主题")
             if self.vocab_embeddings is None:
                 if verbose:
                     print("Computing vocabulary...")
-
                 self.vocab = self.extractor.compute_corpus_vocab(self.corpus, **self.compute_vocab_hyperparams)
             else:
                 print('Vocab already computed')
@@ -267,7 +277,7 @@ class TopicGPT:
         self.topic_prompting.vocab_embeddings = self.vocab_embeddings
         self.topic_prompting.vocab = self.vocab
 
-    def visualize_clusters(self):
+    def visualize_clusters_prepare_data(self):
         """
         该函数用于可视化已识别的聚类，展示主题的散点图。
             确保已提取主题。
@@ -287,12 +297,28 @@ class TopicGPT:
         all_document_indices = np.concatenate([np.repeat(i, topic.document_embeddings_hd.shape[0]) for i, topic in enumerate(self.topic_lis)], axis = 0)
         # 获取每个主题的名称。list[str], eg: ['Topic 0: \n"Convenient meal delivery service"\n', 'Topic 1: \nTitle: Online Food Ordering Convenience\n']
         class_names = [str(topic) for topic in self.topic_lis]
+        # 降维到2D
+        embeddings_2d = self.clusterer.visualize_2D_data_prepare(embeddings=all_document_embeddings)
+        # 调用 visualize_clusters_dynamic 函数绘制动态聚类可视化。
+        return all_document_embeddings, all_document_indices, all_texts, class_names, embeddings_2d
+    def visualize_clusters(self):
+        """
+        该函数用于可视化已识别的聚类，展示主题的散点图。
+            确保已提取主题。
+            合并所有主题的文档嵌入（document_embeddings_hd）。
+            合并所有文档文本。
+            生成文档的索引。
+            获取每个主题的名称。
+            调用 visualize_clusters_dynamic 函数绘制动态聚类可视化。
+        """
+        #确保已提取主题
+        all_document_embeddings, all_document_indices, all_texts, class_names = self.visualize_clusters_prepare_data()
         # 调用 visualize_clusters_dynamic 函数绘制动态聚类可视化。
         self.clusterer.visualize_clusters_dynamic(all_document_embeddings, all_document_indices, all_texts, class_names)
         return True
     def repr_topics(self) -> str:
         """
-        Returns a string explanation of the topics.
+        返回所有主题的摘要。
         """
 
         assert self.topic_lis is not None, "You need to extract the topics first."
@@ -318,7 +344,6 @@ class TopicGPT:
         """
         Prints a string explanation of the topics.
         """
-   
         print(self.repr_topics())
 
     def prompt(self, query: str) -> tuple[str, object]:
@@ -403,5 +428,5 @@ class TopicGPT:
             os.makedirs("SavedEmbeddings")
 
         with open(path, "wb") as f:
-            pickle.dump([self.topic_lis, self.vocab_embeddings, self.document_embeddings,self.vocab], f)
+            pickle.dump([self.topic_lis, self.vocab_embeddings, self.document_embeddings,self.vocab, self.corpus], f)
         print(f"保存主题到{path}成功")

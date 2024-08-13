@@ -198,7 +198,14 @@ class Clustering_and_DimRed():
 
         # Show the plot
         plt.show()
-
+    def visualize_2D_data_prepare(self, embeddings):
+        """
+        准备降到2维的数据
+        """
+        # Reduce dimensionality with UMAP, 可视化的时后，30个类，是不是有些问题, 而且不能大于文本的数量
+        reducer = umap.UMAP(n_components=2, random_state=self.random_state, n_neighbors=self.UMAP_hyperparams["n_neighbors"], metric="cosine", min_dist=0)
+        embeddings_2d = reducer.fit_transform(embeddings)  #[document_num, 2]
+        return embeddings_2d
     def visualize_clusters_dynamic(self, embeddings: np.ndarray, labels: np.ndarray, texts: list[str],
                                    class_names: list[str] = None):
         """
@@ -216,10 +223,7 @@ class Clustering_and_DimRed():
             class_names (list[str], optional): 聚类标签的名称。eg: ['Topic 0: \n"Convenient meal delivery service"\n', 'Topic 1: \nTitle: Online Food Ordering Convenience\n']
         """
 
-        # Reduce dimensionality with UMAP, 可视化的时后，30个类，是不是有些问题, 而且不能大于文本的数量
-        reducer = umap.UMAP(n_components=2, random_state=self.random_state, n_neighbors=self.UMAP_hyperparams["n_neighbors"], metric="cosine", min_dist=0)
-        embeddings_2d = reducer.fit_transform(embeddings)  #[document_num, 2]
-
+        embeddings_2d = self.visualize_2D_data_prepare(embeddings)
         df = pd.DataFrame(embeddings_2d, columns=['x', 'y'])
         df['text'] = [text[:200] for text in texts]
         df["class"] = labels
