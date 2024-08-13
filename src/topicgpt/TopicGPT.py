@@ -226,7 +226,7 @@ class TopicGPT:
         """
         if self.use_saved_topics and os.path.exists(self.path_saved_topics):
             with open(self.path_saved_topics, "rb") as f:
-                self.topic_lis, self.vocab_embeddings, self.document_embeddings, self.vocab, self.corpus = pickle.load(f)
+                self.topic_lis, self.vocab_embeddings, self.document_embeddings, self.vocab, self.corpus, self.topic_lis = pickle.load(f)
             return True
         else:
             print(f"没有找到缓存的主题模型，请先训练主题模型。{self.path_saved_topics}")
@@ -251,8 +251,7 @@ class TopicGPT:
             print("Removed " + str(len_before_removing - len_after_removing) + " empty documents.")
 
         if self.use_saved_topics and os.path.exists(self.path_saved_topics):
-            with open(self.path_saved_topics, "rb") as f:
-                self.topic_lis, self.vocab_embeddings, self.document_embeddings, self.vocab, self.corpus = pickle.load(f)
+            self.load_cache_topics()
         else:
             print(f"不使用缓存，重新计算主题")
             if self.vocab_embeddings is None:
@@ -432,7 +431,7 @@ class TopicGPT:
             os.makedirs("SavedEmbeddings")
 
         with open(path, "wb") as f:
-            pickle.dump([self.topic_lis, self.vocab_embeddings, self.document_embeddings,self.vocab, self.corpus], f)
+            pickle.dump([self.topic_lis, self.vocab_embeddings, self.document_embeddings,self.vocab, self.corpus, self.topic_lis], f)
         print(f"保存主题到{path}成功")
 
     def to_dict(self) -> Dict[str, Any]:
