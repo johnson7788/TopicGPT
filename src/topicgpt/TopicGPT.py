@@ -1,5 +1,6 @@
 import numpy as np
 import os
+from typing import Dict, Any
 import pickle
 # make sure the import works even if the package has not been installed and just the files are used
 from topicgpt.Clustering import Clustering_and_DimRed
@@ -430,3 +431,60 @@ class TopicGPT:
         with open(path, "wb") as f:
             pickle.dump([self.topic_lis, self.vocab_embeddings, self.document_embeddings,self.vocab, self.corpus], f)
         print(f"保存主题到{path}成功")
+
+    def to_dict(self) -> Dict[str, Any]:
+        # 转换为字典（需要排除无法序列化的对象）
+        return {
+            'api_key': self.api_key,
+            'base_url': self.base_url,
+            'azure_endpoint': self.azure_endpoint,
+            'n_topics': self.n_topics,
+            'openai_prompting_model': self.openai_prompting_model,
+            'max_number_of_tokens': self.max_number_of_tokens,
+            'corpus_instruction': self.corpus_instruction,
+            'document_embeddings': self.document_embeddings.tolist() if self.document_embeddings is not None else None,
+            'vocab_embeddings': {k: v.tolist() for k, v in self.vocab_embeddings.items()} if self.vocab_embeddings is not None else None,
+            'embedding_model': self.embedding_model,
+            'max_number_of_tokens_embedding': self.max_number_of_tokens_embedding,
+            'use_saved_embeddings': self.use_saved_embeddings,
+            'path_saved_embeddings': self.path_saved_embeddings,
+            'clusterer': str(self.clusterer),  # 或根据需要自定义序列化方式
+            'n_topwords': self.n_topwords,
+            'n_topwords_description': self.n_topwords_description,
+            'topword_extraction_methods': self.topword_extraction_methods,
+            'compute_vocab_hyperparams': self.compute_vocab_hyperparams,
+            'enhancer': str(self.enhancer),  # 或根据需要自定义序列化方式
+            'topic_prompting': str(self.topic_prompting),  # 或根据需要自定义序列化方式
+            'use_saved_topics': self.use_saved_topics,
+            'path_saved_topics': self.path_saved_topics,
+            'verbose': self.verbose,
+        }
+
+    @classmethod
+    def from_dict(cls, data: Dict[str, Any]):
+        # 从字典创建实例
+        return cls(
+            api_key=data.get('api_key', ""),
+            base_url=data.get('base_url', ""),
+            azure_endpoint=data.get('azure_endpoint', {}),
+            n_topics=data.get('n_topics'),
+            openai_prompting_model=data.get('openai_prompting_model', "gpt-3.5-turbo-16k"),
+            max_number_of_tokens=data.get('max_number_of_tokens', 16384),
+            corpus_instruction=data.get('corpus_instruction', ""),
+            document_embeddings=np.array(data.get('document_embeddings')) if data.get('document_embeddings') is not None else None,
+            vocab_embeddings={k: np.array(v) for k, v in data.get('vocab_embeddings', {}).items()} if data.get('vocab_embeddings') is not None else None,
+            embedding_model=data.get('embedding_model', "text-embedding-ada-002"),
+            max_number_of_tokens_embedding=data.get('max_number_of_tokens_embedding', 8191),
+            use_saved_embeddings=data.get('use_saved_embeddings', True),
+            path_saved_embeddings=data.get('path_saved_embeddings', ""),
+            clusterer=None,  # 自定义加载方式
+            n_topwords=data.get('n_topwords', 2000),
+            n_topwords_description=data.get('n_topwords_description', 500),
+            topword_extraction_methods=data.get('topword_extraction_methods', ["tfidf", "cosine_similarity"]),
+            compute_vocab_hyperparams=data.get('compute_vocab_hyperparams', {}),
+            enhancer=None,  # 自定义加载方式
+            topic_prompting=None,  # 自定义加载方式
+            use_saved_topics=data.get('use_saved_topics', True),
+            path_saved_topics=data.get('path_saved_topics', ""),
+            verbose=data.get('verbose', True),
+        )
