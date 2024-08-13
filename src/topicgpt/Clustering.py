@@ -153,6 +153,11 @@ class Clustering_and_DimRed():
         Reduce dimensionality with UMAP to two dimensions and plot the clusters.
         使用UMAP将嵌入降维到二维，并使用Matplotlib绘制聚类结果。
         不同的聚类标签对应不同的颜色，离群点（标签为 -1）显示为灰色。
+            使用 UMAP 将高维嵌入降维到二维。
+            创建颜色调色板，根据标签映射颜色。
+            为每个标签（聚类和离群点）绘制散点图。
+            将离群点（标签为 -1）显示为灰色。
+            显示图例并展示图像。
         Args:
             embeddings (np.ndarray): Embeddings for which to plot clustering.
             labels (np.ndarray): Cluster labels.
@@ -199,6 +204,11 @@ class Clustering_and_DimRed():
         """
         此方法使用 Plotly 进行动态聚类可视化，并支持悬停显示文本信息。
         UMAP 将嵌入降维到二维，然后在二维平面上绘制聚类结果，点的颜色表示聚类标签。
+            使用 UMAP 将高维嵌入降维到二维。
+            创建一个包含二维坐标和文本信息的数据框（DataFrame）。
+            为不同的聚类标签分配颜色，并处理离群点。
+            使用 Plotly 绘制散点图，悬停时显示文本信息。
+            设置图像的布局和标题，并展示图像。
         Args:
             embeddings (np.ndarray): Embeddings for which to visualize clustering.
             labels (np.ndarray): Cluster labels.
