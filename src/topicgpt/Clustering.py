@@ -13,21 +13,23 @@ from typing import Tuple
 class Clustering_and_DimRed():
     """
     用于执行UMAP降维和HDBSCAN聚类。它包括数据预处理、降维、聚类和可视化等功能。
-    Class to perform dimensionality reduction with UMAP followed by clustering with HDBSCAN.
+    使用 UMAP (Uniform Manifold Approximation and Projection) 进行降维，并使用 HDBSCAN (Hierarchical Density-Based Spatial Clustering of Applications with Noise) 进行聚类。
+    UMAP 是一种非线性降维算法，能够将高维数据映射到低维空间中，而 HDBSCAN 是一种基于密度聚类的算法，能够将数据点自动分组。
     """
+
     def __init__(self,
-             n_dims_umap: int = 5,
-             n_neighbors_umap: int = 15,
-             min_dist_umap: float = 0,
-             metric_umap: str = "cosine",
-             min_cluster_size_hdbscan: int = 30,
-             metric_hdbscan: str = "euclidean",
-             cluster_selection_method_hdbscan: str = "eom",
-             number_clusters_hdbscan: int = None,
-             random_state: int = 42,
-             verbose: bool = True,
-             UMAP_hyperparams: dict = {},
-             HDBSCAN_hyperparams: dict = {}) -> None:
+                 n_dims_umap: int = 5,
+                 n_neighbors_umap: int = 15,
+                 min_dist_umap: float = 0,
+                 metric_umap: str = "cosine",
+                 min_cluster_size_hdbscan: int = 30,
+                 metric_hdbscan: str = "euclidean",
+                 cluster_selection_method_hdbscan: str = "eom",
+                 number_clusters_hdbscan: int = None,
+                 random_state: int = 42,
+                 verbose: bool = True,
+                 UMAP_hyperparams: dict = {},
+                 HDBSCAN_hyperparams: dict = {}) -> None:
         """
         Initializes the clustering and dimensionality reduction parameters for topic modeling.
 
@@ -46,23 +48,22 @@ class Clustering_and_DimRed():
             HDBSCAN_hyperparams (dict, optional): Additional hyperparameters for HDBSCAN.
         """
 
-
-        # do some checks on the input arguments 
+        # do some checks on the input arguments
         assert n_dims_umap > 0, "n_dims_umap must be greater than 0"
         assert n_neighbors_umap > 0, "n_neighbors_umap must be greater than 0"
         assert min_dist_umap >= 0, "min_dist_umap must be greater than or equal to 0"
         assert min_cluster_size_hdbscan > 0, "min_cluster_size_hdbscan must be greater than 0"
         assert number_clusters_hdbscan is None or number_clusters_hdbscan > 0, "number_clusters_hdbscan must be greater than 0 or None"
         assert random_state is None or random_state >= 0, "random_state must be greater than or equal to 0"
-        if isinstance(number_clusters_hdbscan, int) and number_clusters_hdbscan <  min_cluster_size_hdbscan:
+        if isinstance(number_clusters_hdbscan, int) and number_clusters_hdbscan < min_cluster_size_hdbscan:
             # 类别的最小数量必须大于类别数量
-            min_cluster_size_hdbscan = int(number_clusters_hdbscan /2)
-            if min_cluster_size_hdbscan == 1: # 最小聚类数量不能为1
+            min_cluster_size_hdbscan = int(number_clusters_hdbscan / 2)
+            if min_cluster_size_hdbscan == 1:  # 最小聚类数量不能为1
                 min_cluster_size_hdbscan = 2
         self.random_state = random_state
         self.verbose = verbose
-        self.UMAP_hyperparams = UMAP_hyperparams  #{'n_components': 5}
-        self.HDBSCAN_hyperparams = HDBSCAN_hyperparams   #{}
+        self.UMAP_hyperparams = UMAP_hyperparams  # {'n_components': 5}
+        self.HDBSCAN_hyperparams = HDBSCAN_hyperparams  # {}
 
         # 更新 HDBSCAN 的超参数
         self.UMAP_hyperparams["n_components"] = n_dims_umap
@@ -79,7 +80,6 @@ class Clustering_and_DimRed():
         self.number_clusters_hdbscan = number_clusters_hdbscan
         self.hdbscan = hdbscan.HDBSCAN(**self.HDBSCAN_hyperparams)
 
-    
     def reduce_dimensions_umap(self, embeddings: np.ndarray) -> Tuple[np.ndarray, umap.UMAP]:
         """
         Reduces dimensions of embeddings using UMAP.降维算法
@@ -93,17 +93,15 @@ class Clustering_and_DimRed():
                 - umap_mapper (umap.UMAP): UMAP mapper for transforming new embeddings, especially embeddings of the vocabulary. (MAKE SURE TO NORMALIZE EMBEDDINGS AFTER USING THE MAPPER)
         """
         # 使用UMAP的超参数，注意检查超参数
-        mapper = umap.UMAP(**self.UMAP_hyperparams).fit(embeddings)   #embeddings: [document_num, hidden_size]
-        dim_red_embeddings = mapper.transform(embeddings)   #开始降维 [document_num,dimension], eg: [23,5]
-        dim_red_embeddings = dim_red_embeddings/np.linalg.norm(dim_red_embeddings, axis=1).reshape(-1,1)
+        mapper = umap.UMAP(**self.UMAP_hyperparams).fit(embeddings)  # embeddings: [document_num, hidden_size]
+        dim_red_embeddings = mapper.transform(embeddings)  # 开始降维 [document_num,dimension], eg: [23,5]
+        dim_red_embeddings = dim_red_embeddings / np.linalg.norm(dim_red_embeddings, axis=1).reshape(-1, 1)
         return dim_red_embeddings, mapper
-    
+
     def cluster_hdbscan(self, embeddings: np.ndarray) -> np.ndarray:
         """
         Cluster embeddings using HDBSCAN.
         使用HDBSCAN对降维后的嵌入进行聚类，如果指定了固定的聚类数量，则进一步使用层次聚类，并重新索引标签使其连续。
-        If self.number_clusters_hdbscan is not None, further clusters the data with AgglomerativeClustering to achieve a fixed number of clusters.
-
         Args:
             embeddings (np.ndarray): Embeddings to cluster.
 
@@ -118,7 +116,8 @@ class Clustering_and_DimRed():
         outliers = np.where(labels == -1)[0]
         ## 找到所有的离群点（标签为 -1）
         if self.number_clusters_hdbscan is not None:
-            clusterer = AgglomerativeClustering(n_clusters=self.number_clusters_hdbscan)  # # 使用层次聚类重新聚类  #one cluster for outliers
+            clusterer = AgglomerativeClustering(
+                n_clusters=self.number_clusters_hdbscan)  # # 使用层次聚类重新聚类  #one cluster for outliers
             labels = clusterer.fit_predict(embeddings)
             labels[outliers] = -1  # # 将离群点的标签重新设置为 -1
 
@@ -130,11 +129,11 @@ class Clustering_and_DimRed():
         labels = np.array([map2newlabel[label] for label in labels])
 
         return labels
-    
+
     def cluster_and_reduce(self, embeddings: np.ndarray) -> Tuple[np.ndarray, np.ndarray, umap.UMAP]:
         """
-        Cluster embeddings using HDBSCAN and reduce dimensions with UMAP.
-
+        该方法首先使用 UMAP 对输入嵌入进行降维，然后使用 HDBSCAN 对降维后的嵌入进行聚类。
+        最终返回降维后的嵌入、聚类标签和 UMAP 映射器。
         Args:
             embeddings (np.ndarray): Embeddings to cluster and reduce.
 
@@ -146,28 +145,26 @@ class Clustering_and_DimRed():
         """
 
         dim_red_embeddings, umap_mapper = self.reduce_dimensions_umap(embeddings)
-        clusters = self.cluster_hdbscan(dim_red_embeddings)  #clusters是聚类的类别信息
+        clusters = self.cluster_hdbscan(dim_red_embeddings)  # clusters是聚类的类别信息
         return dim_red_embeddings, clusters, umap_mapper
-    
+
     def visualize_clusters_static(self, embeddings: np.ndarray, labels: np.ndarray):
         """
         Reduce dimensionality with UMAP to two dimensions and plot the clusters.
         使用UMAP将嵌入降维到二维，并使用Matplotlib绘制聚类结果。
+        不同的聚类标签对应不同的颜色，离群点（标签为 -1）显示为灰色。
         Args:
             embeddings (np.ndarray): Embeddings for which to plot clustering.
             labels (np.ndarray): Cluster labels.
         """
-
-
         # Reduce dimensionality with UMAP
-        reducer = umap.UMAP(n_components=2, random_state = self.random_state, n_neighbors=30, metric="cosine", min_dist=0)
+        reducer = umap.UMAP(n_components=2, random_state=self.random_state, n_neighbors=30, metric="cosine", min_dist=0)
         embeddings_2d = reducer.fit_transform(embeddings)
-
 
         # Create a color palette, then map the labels to the colors.
         # We add one to the number of unique labels to account for the noise points labelled as -1.
         palette = plt.cm.get_cmap("tab20", len(np.unique(labels)) + 1)
-        
+
         # Create a new figure
         fig, ax = plt.subplots(figsize=(10, 8))
 
@@ -177,31 +174,31 @@ class Clustering_and_DimRed():
         for label in np.unique(labels):
             # Find the embeddings that are part of this cluster
             cluster_points = embeddings_2d[labels == label]
-            
+
             # If label is -1, these are outliers. We want to display them in grey.
             if label == -1:
                 color = 'grey'
                 if not outlier_shown_in_legend:
-                    ax.scatter(cluster_points[:, 0], cluster_points[:, 1], c=color, label='outlier', s = 0.1)
+                    ax.scatter(cluster_points[:, 0], cluster_points[:, 1], c=color, label='outlier', s=0.1)
                     outlier_shown_in_legend = True
                 else:
-                    ax.scatter(cluster_points[:, 0], cluster_points[:, 1], c=color, s = 0.1)
+                    ax.scatter(cluster_points[:, 0], cluster_points[:, 1], c=color, s=0.1)
             else:
                 color = palette(label)
                 # Plot the points in this cluster without a label to prevent them from showing up in the legend
-                ax.scatter(cluster_points[:, 0], cluster_points[:, 1], c=color, s = 0.1)
-            
+                ax.scatter(cluster_points[:, 0], cluster_points[:, 1], c=color, s=0.1)
+
         # Add a legend
         ax.legend()
 
         # Show the plot
         plt.show()
 
-
-    def visualize_clusters_dynamic(self, embeddings: np.ndarray, labels: np.ndarray, texts: list[str], class_names: list[str] = None):
+    def visualize_clusters_dynamic(self, embeddings: np.ndarray, labels: np.ndarray, texts: list[str],
+                                   class_names: list[str] = None):
         """
-        Visualize clusters using Plotly and enable hovering over clusters to see the beginning of the texts of the documents.
-
+        此方法使用 Plotly 进行动态聚类可视化，并支持悬停显示文本信息。
+        UMAP 将嵌入降维到二维，然后在二维平面上绘制聚类结果，点的颜色表示聚类标签。
         Args:
             embeddings (np.ndarray): Embeddings for which to visualize clustering.
             labels (np.ndarray): Cluster labels.
@@ -209,13 +206,12 @@ class Clustering_and_DimRed():
             class_names (list[str], optional): Names of the classes.
         """
 
-
         # Reduce dimensionality with UMAP
-        reducer = umap.UMAP(n_components=2, random_state = self.random_state, n_neighbors=30, metric="cosine", min_dist=0)
+        reducer = umap.UMAP(n_components=2, random_state=self.random_state, n_neighbors=30, metric="cosine", min_dist=0)
         embeddings_2d = reducer.fit_transform(embeddings)
 
         df = pd.DataFrame(embeddings_2d, columns=['x', 'y'])
-        df['text'] = [text[:200] for text in texts] 
+        df['text'] = [text[:200] for text in texts]
         df["class"] = labels
 
         if class_names is not None:
@@ -227,39 +223,40 @@ class Clustering_and_DimRed():
         palette = plt.cm.get_cmap("tab20", len(unique_labels))
 
         # Create color map
-        color_discrete_map = {label: 'rgb'+str(tuple(int(val*255) for val in palette(i)[:3])) if label != -1 else 'grey' for i, label in enumerate(unique_labels)}
+        color_discrete_map = {
+            label: 'rgb' + str(tuple(int(val * 255) for val in palette(i)[:3])) if label != -1 else 'grey' for i, label
+            in enumerate(unique_labels)}
         color_discrete_map[-1] = 'grey'
-        
+
         # plot data points where the color represents the class
-        fig = px.scatter(df, x='x', y='y', hover_data=['text', 'class'], color='class', color_discrete_map=color_discrete_map)
-        
+        fig = px.scatter(df, x='x', y='y', hover_data=['text', 'class'], color='class',
+                         color_discrete_map=color_discrete_map)
+
         fig.update_traces(mode='markers', marker=dict(size=3))  # Optional: Increase the marker size
 
         # make plot quadratic
         fig.update_layout(
-        autosize=False,
-        width=1500,
-        height=1500,
-        margin=dict(
-            l=50,   
-            r=50,
-            b=100,
-            t=100,
-            pad=4
-        )
+            autosize=False,
+            width=1500,
+            height=1500,
+            margin=dict(
+                l=50,
+                r=50,
+                b=100,
+                t=100,
+                pad=4
+            )
         )
         # set title 
         fig.update_layout(title_text='UMAP projection of the document embeddings', title_x=0.5)
 
-        
         # show plot
         fig.show()
 
-
-    def umap_diagnostics(self, embeddings, hammer_edges = False):
+    def umap_diagnostics(self, embeddings, hammer_edges=False):
         """
-        Fit UMAP on the provided embeddings and generate diagnostic plots.
-        
+        该方法用于生成 UMAP 的诊断图，以帮助检查降维效果。
+        包括点连接图、PCA 诊断图和局部维度诊断图等，支持使用锤式边捆绑进行连接图的绘制（较为计算密集）。
         Params:
         ------
         embeddings : array-like

@@ -1,4 +1,5 @@
 class Client:
+    # 初始化llm client
     def __init__(self, api_key: str, base_url:str, azure_endpoint: dict = None, http_client=None ) -> None:
         if azure_endpoint:
             from openai import AzureOpenAI

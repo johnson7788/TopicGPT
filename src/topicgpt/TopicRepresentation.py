@@ -15,7 +15,7 @@ from topicgpt.TopwordEnhancement import TopwordEnhancement
 
 class Topic:
     """
-    class to represent a topic and all its attributes
+    定义了一个 Topic 类，用来表示一个主题及其属性。它包含了主题的各种信息，如索引、文档列表、单词统计、高维和低维空间中的中心点、文档嵌入、相似度以及 UMAP 映射器等。
     """
 
     def __init__(self, 
@@ -36,14 +36,14 @@ class Topic:
 
         Args:
             topic_idx (str): Index or name of the topic.
-            documents (list[str]): List of documents in the topic.
-            words (dict[str, int]): Dictionary of words and their counts in the topic.
-            centroid_hd (np.ndarray, optional): Centroid of the topic in high-dimensional space.
+            documents (list[str]):  属于该主题的文档列表。
+            words (dict[str, int]):  一个字典，表示该主题中的单词及其计数。
+            centroid_hd (np.ndarray, optional): 主题在高维和低维空间中的中心点。
             centroid_ld (np.ndarray, optional): Centroid of the topic in low-dimensional space.
-            document_embeddings_hd (np.ndarray, optional): Embeddings of documents in high-dimensional space that belong to this topic.
+            document_embeddings_hd (np.ndarray, optional): 文档在高维和低维空间中的嵌入。
             document_embeddings_ld (np.ndarray, optional): Embeddings of documents in low-dimensional space that belong to this topic.
-            document_embedding_similarity (np.ndarray, optional): Similarity array of document embeddings to the centroid in low-dimensional space.
-            umap_mapper (umap.UMAP, optional): UMAP mapper object to map from high-dimensional space to low-dimensional space.
+            document_embedding_similarity (np.ndarray, optional): 文档嵌入与低维空间中心点的相似度。
+            umap_mapper (umap.UMAP, optional): 用于将高维空间映射到低维空间的 UMAP 对象。
             top_words (dict[str, list[str]], optional): Dictionary of top words in the topic according to different metrics.
             top_word_scores (dict[str, list[float]], optional): Dictionary of how representative the top words are according to different metrics.
         """
@@ -165,17 +165,25 @@ def topic_lis_to_json(topics: list[Topic]) -> str:
 @staticmethod
 def extract_topics(corpus: list[str], document_embeddings: np.ndarray, clusterer: Clustering_and_DimRed, vocab_embeddings: np.ndarray, n_topwords: int = 2000, topword_extraction_methods: list[str] = ["tfidf", "cosine_similarity"], compute_vocab_hyperparams: dict = {}) -> list[Topic]:
     """
-    Extracts topics from the given corpus using the provided clusterer object on the document embeddings.
+        从给定的文档语料库中提取主题。
+            Args:
+        corpus：文档列表。
+        document_embeddings：文档的嵌入表示（通常是高维的）。
+        clusterer：用于聚类和降维的对象（如 Clustering_and_DimRed）。
+        vocab_embeddings：词汇的嵌入表示。
+        n_topwords：提取的前 N 个词的数量。
+        topword_extraction_methods：用于提取关键词的方法（"tfidf" 或 "cosine_similarity"）。
+        compute_vocab_hyperparams：用于计算词汇的超参数（可选）。
 
-    Args:
-        corpus (list[str]): List of documents.
-        document_embeddings (np.ndarray): Embeddings of the documents.
-        clusterer (Clustering_and_DimRed): Clustering and dimensionality reduction object to cluster the documents.
-        vocab_embeddings (np.ndarray): Embeddings of the vocabulary.
-        n_topwords (int, optional): Number of top-words to extract from the topics (default is 2000).
-        topword_extraction_methods (list[str], optional): List of methods to extract top-words from the topics. 
-            Can contain "tfidf" and "cosine_similarity" (default is ["tfidf", "cosine_similarity"]).
-        compute_vocab_hyperparams (dict, optional): Hyperparameters for the top-word extraction methods.
+    参数验证：检查 topword_extraction_methods 中的方法是否合法。
+    降维和聚类：使用 clusterer 对文档嵌入进行聚类和降维。
+    标签映射：确保聚类标签是连续的整数。
+    提取中心点：计算每个聚类的中心点。
+    词汇计算：计算语料库的词汇表。
+    计算词汇-主题矩阵：计算每个词在不同主题中的分布。
+    提取关键词：根据指定的方法提取每个主题的关键词。
+    创建 Topic 对象：根据提取的主题信息创建 Topic 对象。
+    返回结果：返回主题对象的列表。
 
     Returns:
         list[Topic]: List of Topic objects representing the extracted topics.
@@ -260,9 +268,15 @@ def extract_topics(corpus: list[str], document_embeddings: np.ndarray, clusterer
 @staticmethod
 def extract_topics_no_new_vocab_computation(corpus: list[str], vocab: list[str], document_embeddings: np.ndarray, clusterer: Clustering_and_DimRed, vocab_embeddings: np.ndarray, n_topwords: int = 2000, topword_extraction_methods: list[str] = ["tfidf", "cosine_similarity"], consider_outliers: bool = False) -> list[Topic]:
     """
-    Extracts topics from the given corpus using the provided clusterer object on the document embeddings. 
-    This version does not compute the vocabulary of the corpus and instead uses the provided vocabulary.
-
+    从给定的文档语料库中提取主题，但不计算词汇表，而是使用提供的词汇表。
+    与 extract_topics 类似，但 vocab 参数取代了词汇表计算的部分，并且没有 compute_vocab_hyperparams 参数。
+    参数验证：确保 topword_extraction_methods 合法。
+    降维和聚类：与 extract_topics 相同。
+    提取中心点：与 extract_topics 相同。
+    词汇-主题矩阵计算：使用提供的词汇表计算词汇-主题矩阵。
+    提取关键词：使用指定的方法提取每个主题的关键词。
+    创建 Topic 对象：与 extract_topics 相同。
+    返回结果：返回主题对象的列表。
     Args:
         corpus (list[str]): List of documents.
         vocab (list[str]): Vocabulary of the corpus.
@@ -361,21 +375,21 @@ def extract_topics_no_new_vocab_computation(corpus: list[str], vocab: list[str],
 @staticmethod
 def extract_and_describe_topics(corpus: list[str], document_embeddings: np.ndarray, clusterer: Clustering_and_DimRed, vocab_embeddings: np.ndarray, enhancer: TopwordEnhancement, n_topwords: int = 2000, n_topwords_description: int = 500, topword_extraction_methods: list[str] = ["tfidf", "cosine_similarity"], compute_vocab_hyperparams: dict = {}, topword_description_method: str = "cosine_similarity") -> list[Topic]:
     """
-    Extracts topics from the given corpus using the provided clusterer object on the document embeddings and describes/names them using the given enhancer object.
-
+    从文档中提取主题，并使用增强器对象来描述和命名这些主题。
+        提取主题：调用 extract_topics 方法提取主题。
+        描述和命名主题：调用 describe_and_name_topics 方法使用 enhancer 对提取的主题进行描述和命名。
+        返回结果：返回带有描述和命名的主题对象的列表。
     Args:
-        corpus (list[str]): List of documents.
-        document_embeddings (np.ndarray): Embeddings of the documents.
-        clusterer (Clustering_and_DimRed): Clustering and dimensionality reduction object to cluster the documents.
-        vocab_embeddings (np.ndarray): Embeddings of the vocabulary.
-        enhancer (TopwordEnhancement): Enhancer object for enhancing top-words and generating descriptions/names for topics.
-        n_topwords (int, optional): Number of top-words to extract from the topics (default is 2000).
-        n_topwords_description (int, optional): Number of top-words to use from the extracted topics for description and naming (default is 500).
-        topword_extraction_methods (list[str], optional): List of methods to extract top-words from the topics. 
-            Can contain "tfidf" and "cosine_similarity" (default is ["tfidf", "cosine_similarity"]).
-        compute_vocab_hyperparams (dict, optional): Hyperparameters for the top-word extraction methods.
-        topword_description_method (str, optional): Method to use for top-word extraction for description/naming. 
-            Can be "tfidf" or "cosine_similarity" (default is "cosine_similarity").
+        corpus：文档列表。
+        document_embeddings：文档的嵌入表示。
+        clusterer：用于聚类和降维的对象。
+        vocab_embeddings：词汇的嵌入表示。
+        enhancer：用于增强主题描述的对象。
+        n_topwords：提取的前 n 个词汇的数量。
+        n_topwords_description：用于描述和命名的前 n 个词汇的数量。
+        topword_extraction_methods：用于提取前词的方法列表（如 "tfidf" 或 "cosine_similarity"）。
+        compute_vocab_hyperparams：用于提取前词的方法的超参数。
+        topword_description_method：用于描述和命名的前词提取方法。
 
     Returns:
         list[Topic]: List of Topic objects representing the extracted and described topics.
@@ -390,19 +404,22 @@ def extract_and_describe_topics(corpus: list[str], document_embeddings: np.ndarr
 @staticmethod
 def extract_topics_labels_vocab(corpus: list[str], document_embeddings_hd: np.ndarray, document_embeddings_ld: np.ndarray, labels: np.ndarray, umap_mapper: umap.UMAP, vocab_embeddings: np.ndarray, vocab: list[str] = None, n_topwords: int = 2000, topword_extraction_methods: list[str] = ["tfidf", "cosine_similarity"]) -> list[Topic]:
     """
-    Extracts topics from the given corpus using the provided labels that indicate the topics (no -1 for outliers). Vocabulary is already computed.
-
+    文档中提取主题，使用提供的标签（不包括 -1 作为离群值）来指示主题，并且词汇已经被计算。
+    检查输入：确保 topword_extraction_methods 中的方法是有效的。
+    计算词汇：如果未提供词汇，使用 ExtractTopWords 类来计算词汇。
+    提取质心：提取每个主题的质心。
+    计算词汇-主题矩阵：计算文档的词汇-主题矩阵。
+    提取前词：根据指定的方法（如 TF-IDF 或余弦相似度）提取前词。
+    构建主题对象：为每个主题创建 Topic 对象，并将提取的前词和得分附加到主题上。
     Args:
-        corpus (list[str]): List of documents.
-        document_embeddings_hd (np.ndarray): Embeddings of the documents in high-dimensional space.
-        document_embeddings_ld (np.ndarray): Embeddings of the documents in low-dimensional space.
-        labels (np.ndarray): Labels indicating the topics.
-        umap_mapper (umap.UMAP): UMAP mapper object to map from high-dimensional space to low-dimensional space.
-        vocab_embeddings (np.ndarray): Embeddings of the vocabulary.
-        vocab (list[str], optional): Vocabulary of the corpus (default is None).
-        n_topwords (int, optional): Number of top-words to extract from the topics (default is 2000).
-        topword_extraction_methods (list[str], optional): List of methods to extract top-words from the topics. 
-            Can contain "tfidf" and "cosine_similarity" (default is ["tfidf", "cosine_similarity"]).
+        corpus：文档列表。
+        document_embeddings_hd 和 document_embeddings_ld：文档在高维和低维空间中的嵌入表示。
+        labels：指示主题的标签。
+        umap_mapper：用于从高维空间到低维空间映射的 UMAP 对象。
+        vocab_embeddings：词汇的嵌入表示。
+        vocab：词汇列表（可选）。
+        n_topwords：提取的前 n 个词汇的数量。
+        topword_extraction_methods：提取前词的方法列表。
 
     Returns:
         list[Topic]: List of Topic objects representing the extracted topics.
@@ -496,6 +513,7 @@ def extract_describe_topics_labels_vocab(
     topword_description_method: str = "cosine_similarity"
 ) -> list[Topic]:
     """
+    从给定的文档和标签中提取主题，并使用给定的增强器对象描述和命名这些主题。
     Extracts topics from the given corpus using the provided labels that indicate the topics (no -1 for outliers). Vocabulary is already computed.
     Describe and name the topics with the given enhancer object.
 
@@ -532,16 +550,19 @@ def extract_topic_cos_sim(
     n_topwords: int = 2000
 ) -> Topic:
     """
-    Create a Topic object from the given documents and embeddings by computing the centroid and the top-words.
-    Only uses cosine-similarity for top-word extraction.
+        这个方法从给定的文档和嵌入中创建一个主题对象，主要使用余弦相似度进行topk提取：
 
+        提取质心：计算文档的质心。
+        计算词汇-主题矩阵：计算词汇-主题矩阵。
+        提取前词：仅使用余弦相似度方法提取前词。
+        创建主题对象：根据计算结果创建 Topic 对象，并计算文档与质心之间的相似度。
     Args:
-        documents_topic (list[str]): List of documents in the topic.
-        document_embeddings_topic (np.ndarray): High-dimensional embeddings of the documents in the topic.
-        words_topic (list[str]): List of words in the topic.
-        vocab_embeddings (dict): Embeddings of the vocabulary.
-        umap_mapper (umap.UMAP): UMAP mapper object to map from high-dimensional space to low-dimensional space.
-        n_topwords (int, optional): Number of top-words to extract from the topics (default is 2000).
+        documents_topic：主题中的文档列表。
+        document_embeddings_topic：文档的嵌入表示。
+        words_topic：主题中的词汇列表。
+        vocab_embeddings：词汇的嵌入表示。
+        umap_mapper：用于降维的 UMAP 对象。
+        n_topwords：提取的前 n 个词汇的数量。
 
     Returns:
         Topic: Topic object representing the extracted topic.
@@ -598,10 +619,9 @@ def extract_and_describe_topic_cos_sim(
     n_topwords_description=500
 ) -> Topic:
     """
-    Create a Topic object from the given documents and embeddings by computing the centroid and the top-words.
-    Only use cosine-similarity for top-word extraction.
-    Describe and name the topic with the given enhancer object.
-
+    方法类似于 extract_topic_cos_sim，但在创建主题对象后，还会描述和命名该主题：
+    创建主题对象：调用 extract_topic_cos_sim。
+    描述和命名主题：使用 describe_and_name_topics 对主题进行描述和命名。
     Args:
         documents_topic (list[str]): List of documents in the topic.
         document_embeddings_topic (np.ndarray): High-dimensional embeddings of the documents in the topic.
@@ -631,8 +651,10 @@ def describe_and_name_topics(
     n_words=500
 ) -> list[Topic]:
     """
-    Describe and name the topics using the OpenAI API with the given enhancer object.
+    使用 TopwordEnhancement 对象来描述和命名主题：
 
+    描述和命名：调用 enhancer 对象的方法生成主题的名称和描述。
+    处理异常：如果生成名称和描述时出错，尝试重新生成。
     Args:
         topics (list[Topic]): List of Topic objects.
         enhancer (TopwordEnhancement): Enhancer object to enhance the top-words and generate the description.

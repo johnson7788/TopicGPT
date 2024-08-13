@@ -1,5 +1,5 @@
 import os
-
+import pickle
 import openai
 from openai import OpenAI
 import numpy as np
@@ -35,7 +35,7 @@ You only say that something is contained in the corpus if you are very sure abou
 
 class TopicPrompting:
     """
-    This class allows to formulate prompts and queries against the identified topics to get more information about them
+    主要用于基于主题列表执行查询和处理相关的操作。该类结合了语言模型（LLM）和嵌入模型（embedding models）来处理和分析文本数据。
     """
 
     def __init__(self, 
@@ -321,8 +321,8 @@ class TopicPrompting:
 
     def reindex_topics(self) -> None:
         """
+        重新索引主题列表中的主题，确保它们的索引是正确的。
         Reindexes the topics in self.topic_list to assign correct new indices.
-
         This method updates the indices of topics within the instance's topic list to ensure they are correctly ordered.
 
         Returns:
@@ -351,6 +351,7 @@ class TopicPrompting:
 
     def show_topic_lis(self) -> str:
         """
+        打印出当前的主题列表，便于查看。
         Returns a string representation of the list of topics.
 
         This method generates a human-readable string representation of the topics in the instance's topic list.
@@ -397,8 +398,7 @@ class TopicPrompting:
 
     def knn_search(self, topic_index: int, query: str, k: int = 20, doc_cutoff_threshold: int = 1000) -> tuple[list[str], list[int]]:
         """
-        Finds the k nearest neighbors of the query in the given topic based on cosine similarity in the original embedding space.
-
+        基于余弦相似度在指定主题内查找与查询最接近的k个文档。它使用嵌入模型生成查询的嵌入向量，并在主题的文档嵌入向量中进行搜索。
         Args:
             topic_index (int): Index of the topic to search within.
             query (str): Query string.
@@ -440,8 +440,7 @@ class TopicPrompting:
 
     def prompt_knn_search(self, llm_query: str, topic_index: int = None, n_tries: int = 3) -> tuple[str, tuple[list[str], list[int]]]:
         """
-        Uses the Language Model (LLM) to answer the llm_query based on the documents belonging to the topic.
-
+        使用语言模型回答查询，并根据指定主题内的文档来提供答案。它尝试调用knn_search功能，并结合LLM生成最终响应。
         Args:
             llm_query (str): Query string for the Language Model (LLM).
             topic_index (int, optional): Index of the topic object. If None, the topic is inferred from the query.
@@ -513,8 +512,7 @@ class TopicPrompting:
 
     def identify_topic_idx(self, query: str, n_tries: int = 3) -> int:
         """
-        Identifies the index of the topic that the query is most likely about.
-
+        使用LLM确定最符合查询的主题索引。
         This method uses a Language Model (LLM) to determine which topic best fits the query description. If the LLM does not find any topic that fits the query, None is returned.
 
         Args:
@@ -581,7 +579,11 @@ class TopicPrompting:
 
     def split_topic_new_assignments(self, topic_idx: int, new_topic_assignments: np.ndarray, inplace: bool = False) -> list[Topic]:
         """
-        Splits a topic into new topics based on new topic assignments.
+        将一个主题分割为多个新主题，基于给定的文档新主题分配。
+        检查必要的嵌入和增强器是否存在，否则抛出错误。
+        对给定的主题中的文档，基于new_topic_assignments对文档进行分类，将每类文档放入一个新的主题中。
+        通过余弦相似度方法提取新的主题词（topwords）。
+        返回新的主题列表，并在inplace为True时，将新的主题列表替换当前的主题列表。
 
         Note that this method only computes topwords based on the cosine-similarity method because tf-idf topwords need expensive computation on the entire corpus. 
         The topwords of the old topic are also just split among the new ones. No new topwords are computed in this step.
@@ -643,6 +645,10 @@ class TopicPrompting:
 
     def split_topic_kmeans(self, topic_idx: int, n_clusters: int = 2, inplace: bool = False) -> list[Topic]:
         """
+        使用K-means聚类将一个主题分割为多个子主题。
+        使用K-means聚类对主题中的文档进行聚类，将文档分配到不同的子主题。
+        调用split_topic_new_assignments函数基于K-means的聚类结果创建新的子主题。
+        返回新的主题列表。
         Splits an existing topic into several subtopics using k-means clustering on the document embeddings of the topic.
 
         Note that no new topwords are computed in this step, and the topwords of the old topic are just split among the new ones. Additionally, only the cosine-similarity method for topwords extraction is used.
@@ -668,6 +674,11 @@ class TopicPrompting:
 
     def split_topic_hdbscan(self, topic_idx: int, min_cluster_size: int = 100, inplace: bool = False) -> list[Topic]:
         """
+        使用HDBSCAN聚类将一个主题分割为多个子主题。
+        主要逻辑:
+        使用HDBSCAN聚类对文档进行聚类，不需要预先指定聚类的数量。
+        基于HDBSCAN的聚类结果调用split_topic_new_assignments创建新的子主题。
+        返回新的主题列表。
         Splits an existing topic into several subtopics using HDBSCAN clustering on the document embeddings of the topic.
 
         This method does not require specifying the number of clusters to split. Note that no new topwords are computed in this step, and the topwords of the old topic are just split among the new ones. Additionally, only the cosine-similarity method for topwords extraction is used.
@@ -699,6 +710,12 @@ class TopicPrompting:
 
     def split_topic_keywords(self, topic_idx: int, keywords: str, inplace: bool = False) -> list[Topic]:
         """
+        基于关键词将一个主题分割为多个子主题。
+        主要逻辑:
+        检查提供的关键词数量，确保至少有两个关键词。
+        计算每个关键词的嵌入向量，并与主题中的文档嵌入计算余弦相似度。
+        根据文档与关键词的相似度分配文档到不同的子主题。
+        返回新的主题列表。
         Splits the topic into subtopics according to the provided keywords.
 
         This is achieved by computing the cosine similarity between the keywords and the documents in the topic. Note that no new topwords are computed in this step, and the topwords of the old topic are just split among the new ones. Additionally, only the cosine-similarity method for topwords extraction is used.
@@ -744,7 +761,11 @@ class TopicPrompting:
 
     def split_topic_single_keyword(self, topic_idx: int, keyword: str, inplace: bool = False) -> list[Topic]:
         """
-        Splits the topic with a single keyword.
+        基于单个关键词将一个主题分割成两个子主题。
+        主要逻辑:
+        将给定的关键词与原始主题名称一起作为分割依据。
+        调用split_topic_keywords来进行实际的分割操作。
+        返回新的主题列表。
 
         This method splits the topic such that all documents closer to the original topic name stay in the old topic, while all documents closer to the keyword are moved to the new topic. Note that no new topwords are computed in this step, and the topwords of the old topic are just split among the new ones. Additionally, only the cosine-similarity method for topwords extraction is used.
 
@@ -765,8 +786,12 @@ class TopicPrompting:
 
     def combine_topics(self, topic_idx_lis: list[int], inplace: bool = False) -> list[Topic]:
         """
-        Combines several topics into one topic.
-
+        将多个主题合并为一个新的主题。
+        主要逻辑:
+        将指定主题的文档和词汇组合到一起。
+        调用extract_and_describe_topic_cos_sim生成新的主题描述，并将合并后的主题词和文档嵌入结合。
+        删除原始的主题，添加新的主题到主题列表中。
+        返回新的主题列表。
         This method combines the specified topics into a single topic. Note that no new topwords are computed in this step, and the topwords of the old topics are just combined. Additionally, only the cosine-similarity method for topwords extraction is used.
 
         Args:
@@ -816,8 +841,12 @@ class TopicPrompting:
 
     def add_new_topic_keyword(self, keyword: str, inplace: bool = False, rename_new_topic: bool = False) -> list[Topic]:
         """
-        Create a new topic based on a keyword and recompute topic topwords.
-
+        作用: 基于关键词创建一个新主题，并重新计算主题词。
+        主要逻辑:
+        计算关键词的嵌入向量，并确定其在现有主题中的位置。
+        将所有与关键词更相似的文档从其他主题中移除并添加到新主题中。
+        调用extract_describe_topics_labels_vocab创建新的主题描述。
+        返回包含新主题的主题列表。
         This method removes all documents belonging to other topics from them and adds them to the new topic. It computes new topwords using both the tf-idf and the cosine-similarity method.
 
         Args:
@@ -895,6 +924,12 @@ class TopicPrompting:
 
     def delete_topic(self, topic_idx: int, inplace: bool = False) -> list[Topic]:
         """
+        作用: 删除给定索引的主题，并重新计算其余主题的主题词和表示。
+        主要逻辑:
+        删除指定的主题，将其文档重新分配到剩余的主题中。
+        重新计算剩余主题的中心，并重新分配文档到最接近的主题。
+        调用extract_describe_topics_labels_vocab生成新的主题描述。
+        返回新的主题列表。
         Deletes a topic with the given index from the list of topics and recomputes topwords and representations of the remaining topics.
 
         This method assigns the documents of the deleted topic to the remaining topics.
@@ -963,8 +998,11 @@ class TopicPrompting:
 
     def get_topic_information(self, topic_idx_lis: list[int], max_number_topwords: int = 500) -> dict:
         """
-        Get detailed information on topics by their indices.
-
+        方法用于获取指定主题的详细信息，包括主题描述和前 max_number_topwords 个关键词，并返回一个包含这些信息的字典。
+        计算每个主题最大允许的词数，以确保最终生成的描述不会超过 max_context_length_promting 设定的上下文限制。
+        遍历主题索引列表，提取每个主题的名称、描述和关键词，并将这些信息构建为字符串，存储在字典中。
+        将字典中的描述进行剪枝，使其符合最大允许的词数限制。
+        返回包含主题描述的字典。
         This function returns a dictionary where the keys are the topic indices, and the values are strings describing the topics. The description includes a maximum of max_number_topwords topwords.
 
         Args:
@@ -1003,8 +1041,7 @@ class TopicPrompting:
 
     def _knn_search_openai(self, topic_index: int, query: str, k: int = 20) -> tuple[str, (list[str], list[int])]:
         """
-        A version of the knn_search function that returns a JSON file to be used with the OpenAI API.
-
+        这是 knn_search 函数的一个版本，它返回适合与 OpenAI API 一起使用的 JSON 文件。
         Args:
             topic_index (int): Index of the topic to search in.
             query (str): Query string.
@@ -1026,7 +1063,7 @@ class TopicPrompting:
 
     def _identify_topic_idx_openai(self, query: str, n_tries: int = 3) -> tuple[str, int]:
         """
-        A version of the identify_topic_idx function that returns a JSON file to be used with the OpenAI API.
+        这是 identify_topic_idx 函数的一个版本，它返回适合与 OpenAI API 一起使用的 JSON 文件。
 
         Args:
             query (str): Query string.
@@ -1210,12 +1247,19 @@ class TopicPrompting:
 
     def general_prompt(self, prompt: str, n_tries: int = 2) -> tuple[list[str], object]:
         """
-        Prompt the Language Model (LLM) with a general prompt and return the response. Allow the LLM to call any function defined in the class.
+        这个方法用于向语言模型（LLM）发送通用提示并返回响应，允许 LLM 调用类中定义的任何函数。
+        prompt: 提示字符串。
+        n_tries: 获取有效响应的最大尝试次数，默认为2。
 
-        Use n_tries in case the LLM does not provide a valid response.
+        构建与 LLM 交互的消息列表，并包括函数描述。
+        进行多次尝试与 LLM 交互，直到获得有效响应。
+        检查 LLM 是否想要调用某个函数，如果是，则调用该函数并将结果返回给 LLM。
+        处理并返回最终响应。
 
         Args:
+            prompt: 提示字符串。
             prompt (str): Prompt string.
+            n_tries: 获取有效响应的最大尝试次数，默认为2。
             n_tries (int, optional): Number of tries to get a valid response from the LLM (default is 2).
 
         Returns:
@@ -1237,7 +1281,6 @@ class TopicPrompting:
         functions = [self.function_descriptions[key] for key in self.function_descriptions.keys()]
         for num in range(n_tries):
             try:
-                import pickle
                 if os.path.exists("cache_function.pkl"):
                     with open("cache_function.pkl", "rb") as f:
                         response_message = pickle.load(f)
