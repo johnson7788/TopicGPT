@@ -15,9 +15,6 @@ embeddings_path= "SavedEmbeddings/embeddings.pkl" #global variable for the path 
 topic_path= "SavedEmbeddings/topic.pkl" #global variable for the path to the embeddings
 
 class TopicGPT:
-    """
-    This is the main class for doing topic modelling with TopicGPT. 
-    """
     def __init__(self,
              api_key: str = "",
              base_url: str = "",
@@ -46,42 +43,38 @@ class TopicGPT:
              verbose: bool = True) -> None:
         
         """
-        Initializes the main class for conducting topic modeling with TopicGPT.
-
+        初始化TopicGPT
         Args:
-            api_key (str): Your OpenAI API key. Obtain this key from https://beta.openai.com/account/api-keys.
-            n_topics (int, optional): Number of topics to discover. If None, the Hdbscan algorithm (https://pypi.org/project/hdbscan/) is used to determine the number of topics automatically. Otherwise, agglomerative clustering is used. Note that with insufficient data, fewer topics may be found than specified.
-            openai_prompting_model (str, optional): Model provided by OpenAI for topic description and prompts. Refer to https://platform.openai.com/docs/models for available models.
-            max_number_of_tokens (int, optional): Maximum number of tokens to use for the OpenAI API.
-            corpus_instruction (str, optional): Additional information about the corpus, if available, to benefit the model.
-            document_embeddings (np.ndarray, optional): Document embeddings for the corpus. If None, they will be computed using the OpenAI API.
-            vocab_embeddings (dict[str, np.ndarray], optional): Vocabulary embeddings for the corpus in a dictionary format where keys are words and values are embeddings. If None, they will be computed using the OpenAI API.
-            embedding_model (str, optional): Name of the embedding model to use. See https://beta.openai.com/docs/api-reference/text-embedding for available models.
-            max_number_of_tokens_embedding (int, optional): Maximum number of tokens to use for the OpenAI API when computing embeddings.
-            use_saved_embeddings (bool, optional): Whether to use saved embeddings. If True, embeddings are loaded from the file 'SavedEmbeddings/embeddings.pkl' or path_saved_embeddings if different. If False, embeddings are computed using the OpenAI API and saved to the file.
-            path_saved_embeddings (str, optional): Path to the saved embeddings file.
-            clusterer (Clustering_and_DimRed, optional): Clustering and dimensionality reduction object. Find the class in the "Clustering/Clustering" folder. If None, a clustering object with default parameters is used. Note that providing document and vocab embeddings and an embedding object at the same time is not sensible; the number of topics specified in the clusterer will overwrite the n_topics argument.
-            n_topwords (int, optional): Number of top words to extract and save for each topic. Note that fewer top words might be used later.
-            n_topwords_description (int, optional): Number of top words to provide to the LLM (Language Model) to describe the topic.
-            topword_extraction_methods (list[str], optional): List of methods for extracting top words. Available methods include "tfidf", "cosine_similarity", and "topword_enhancement". Refer to the file 'ExtractTopWords/ExtractTopWords.py' for more details.
-            compute_vocab_hyperparams (dict, optional): Hyperparameters for computing vocabulary embeddings. Refer to the file 'ExtractTopWords/ExtractTopWords.py' for more details.
-            enhancer (TopwordEnhancement, optional): Topword enhancement object. Used for describing topics. Find the class in the "TopwordEnhancement/TopwordEnhancement.py" folder. If None, a topword enhancement object with default parameters is used. If an openai model is specified here, it will overwrite the openai_prompting_model argument for topic description.
-            topic_prompting (TopicPrompting, optional): Topic prompting object for formulating prompts. Find the class in the "TopicPrompting/TopicPrompting.py" folder. If None, a topic prompting object with default parameters is used. If an openai model is specified here, it will overwrite the openai_prompting_model argument for topic description.
-            verbose (bool, optional): Whether to print detailed information about the process. This can be overridden by arguments in passed objects.
+            api_key (str)：你的 OpenAI API 密钥。请从 OpenAI API 密钥页面 获取此密钥。
+            n_topics (int, optional)：要发现的主题数量。如果为 None，则使用 Hdbscan 算法（Hdbscan 项目页面）自动确定主题数量。否则，使用聚合聚类方法。请注意，如果数据不足，可能会发现比指定的主题数量更少的主题。
+            openai_prompting_model (str, optional)：用于主题描述和提示的 OpenAI 模型。请参阅 OpenAI 模型文档 以了解可用的模型。
+            max_number_of_tokens (int, optional)：用于 OpenAI API 的最大 token 数量。
+            corpus_instruction (str, optional)：关于语料库的附加信息（如果有的话），以帮助模型更好地理解。
+            document_embeddings (np.ndarray, optional)：语料库的文档嵌入。如果为 None，则将使用 OpenAI API 计算嵌入。
+            vocab_embeddings (dict[str, np.ndarray], optional)：语料库的词汇嵌入，格式为字典，其中键为词汇，值为嵌入。如果为 None，则将使用 OpenAI API 计算嵌入。
+            embedding_model (str, optional)：要使用的嵌入模型的名称。请参阅 OpenAI 嵌入模型文档 以了解可用的模型。
+            max_number_of_tokens_embedding (int, optional)：计算嵌入时用于 OpenAI API 的最大 token 数量。
+            use_saved_embeddings (bool, optional)：是否使用保存的嵌入。如果为 True，则从文件 SavedEmbeddings/embeddings.pkl 或其他 path_saved_embeddings 中加载嵌入。如果为 False，则使用 OpenAI API 计算嵌入并保存到文件中。
+            path_saved_embeddings (str, optional)：保存的嵌入文件的路径。
+            clusterer (Clustering_and_DimRed, optional)：聚类和降维对象。在 “Clustering/Clustering” 文件夹中查找该类。如果为 None，则使用具有默认参数的聚类对象。请注意，同时提供文档和词汇嵌入以及嵌入对象是没有意义的；clusterer 中指定的主题数量将覆盖 n_topics 参数。
+            n_topwords (int, optional)：每个主题提取和保存的 top words 数量。请注意，后续可能会使用更少的 top words。
+            n_topwords_description (int, optional)：提供给语言模型用于描述主题的 top words 数量。
+            topword_extraction_methods (list[str], optional)：提取 top words 的方法列表。可用的方法包括 “tfidf”、“cosine_similarity” 和 “topword_enhancement”。有关更多细节，请参阅文件 ExtractTopWords/ExtractTopWords.py。
+            compute_vocab_hyperparams (dict, optional)：计算词汇嵌入的超参数。有关更多细节，请参阅文件 ExtractTopWords/ExtractTopWords.py。
+            enhancer (TopwordEnhancement, optional)：topword 增强对象。用于描述主题。在 “TopwordEnhancement/TopwordEnhancement.py” 文件夹中查找该类。如果为 None，则使用具有默认参数的 topword 增强对象。如果在此处指定了 OpenAI 模型，它将覆盖用于主题描述的 openai_prompting_model 参数。
+            topic_prompting (TopicPrompting, optional)：用于制定提示的主题提示对象。在 “TopicPrompting/TopicPrompting.py” 文件夹中查找该类。如果为 None，则使用具有默认参数的主题提示对象。如果在此处指定了 OpenAI 模型，它将覆盖用于主题描述的 openai_prompting_model 参数。
+            verbose (bool, optional)：是否打印关于过程的详细信息。这可以通过传递的对象中的参数进行覆盖。
         """
-
-        # Do some checks on the input arguments
-        assert api_key is not None, "You need to provide an OpenAI API key."
-        assert n_topics is None or n_topics > 0, "The number of topics needs to be a positive integer."
-        assert max_number_of_tokens > 0, "The maximum number of tokens needs to be a positive integer."
-        assert max_number_of_tokens_embedding > 0, "The maximum number of tokens for the embedding model needs to be a positive integer."
-        assert n_topwords > 0, "The number of top words needs to be a positive integer."
-        assert n_topwords_description > 0, "The number of top words for the topic description needs to be a positive integer."
-        assert len(topword_extraction_methods) > 0, "You need to provide at least one topword extraction method."
-        assert n_topwords_description <= n_topwords, "The number of top words for the topic description needs to be smaller or equal to the number of top words."
-
+        #参数的检查
+        assert api_key is not None, "您需要提供一个 OpenAI API 密钥。"
+        assert n_topics is None or n_topics > 0, "主题数量需要是一个正整数。"
+        assert max_number_of_tokens > 0, "最大 token 数量需要是一个正整数。"
+        assert max_number_of_tokens_embedding > 0, "嵌入模型的最大 token 数量需要是一个正整数。"
+        assert n_topwords > 0, "top words 的数量需要是一个正整数。"
+        assert n_topwords_description > 0, "用于主题描述的 top words 数量需要是一个正整数。"
+        assert len(topword_extraction_methods) > 0, "您需要提供至少一种 topword 提取方法。tfidf或者cosine_similarity或topword_enhancement"
+        assert n_topwords_description <= n_topwords, "用于主题描述的 top words 数量需要小于或等于 top words 的数量。"
         self.client = Client(api_key = api_key, base_url=base_url, azure_endpoint = azure_endpoint,http_client=http_client)
-
         self.n_topics = n_topics
         self.openai_prompting_model = openai_prompting_model
         self.max_number_of_tokens = max_number_of_tokens
@@ -104,7 +97,7 @@ class TopicGPT:
         self.verbose = verbose
 
         self.compute_vocab_hyperparams["verbose"] = self.verbose
-        
+
         # if embeddings have already been downloaded to the folder SavedEmbeddings, then load them
         if self.use_saved_embeddings and os.path.exists(path_saved_embeddings):
             print(f"使用已保存的嵌入文件: {path_saved_embeddings}")
