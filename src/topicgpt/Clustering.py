@@ -210,15 +210,15 @@ class Clustering_and_DimRed():
             使用 Plotly 绘制散点图，悬停时显示文本信息。
             设置图像的布局和标题，并展示图像。
         Args:
-            embeddings (np.ndarray): Embeddings for which to visualize clustering.
-            labels (np.ndarray): Cluster labels.
-            texts (list[str]): Texts of the documents.
-            class_names (list[str], optional): Names of the classes.
+            embeddings (np.ndarray): [document_num, embedding_dim] 文档的嵌入向量。
+            labels (np.ndarray): 每个文档对应的聚类标签。eg: [0 0 0 0 0 0 0 0 0 0 0 0 1 1 1 1 1 1 1 1 1]
+            texts (list[str]):  文档的文本内容。
+            class_names (list[str], optional): 聚类标签的名称。eg: ['Topic 0: \n"Convenient meal delivery service"\n', 'Topic 1: \nTitle: Online Food Ordering Convenience\n']
         """
 
-        # Reduce dimensionality with UMAP
-        reducer = umap.UMAP(n_components=2, random_state=self.random_state, n_neighbors=30, metric="cosine", min_dist=0)
-        embeddings_2d = reducer.fit_transform(embeddings)
+        # Reduce dimensionality with UMAP, 可视化的时后，30个类，是不是有些问题, 而且不能大于文本的数量
+        reducer = umap.UMAP(n_components=2, random_state=self.random_state, n_neighbors=self.UMAP_hyperparams["n_neighbors"], metric="cosine", min_dist=0)
+        embeddings_2d = reducer.fit_transform(embeddings)  #[document_num, 2]
 
         df = pd.DataFrame(embeddings_2d, columns=['x', 'y'])
         df['text'] = [text[:200] for text in texts]
@@ -227,7 +227,7 @@ class Clustering_and_DimRed():
         if class_names is not None:
             df["class"] = [class_names[label] for label in labels]
 
-        # Create a color palette, then map the labels to the colors.
+        # 创建颜色画板，聚类的标签放到和画板颜色对应
         # Exclude the outlier (-1) label from color palette assignment
         unique_labels = [label for label in np.unique(labels) if label != -1]
         palette = plt.cm.get_cmap("tab20", len(unique_labels))

@@ -280,17 +280,17 @@ class TopicGPT:
         """
         #确保已提取主题
         assert self.topic_lis is not None, "请先提取主题"
-        # 合并所有主题的文档嵌入（document_embeddings_hd）。
+        # 合并所有主题的文档嵌入（document_embeddings_hd）。 形状[document_nums, hidden_size)
         all_document_embeddings = np.concatenate([topic.document_embeddings_hd for topic in self.topic_lis], axis = 0)
-        #合并所有文档文本。
+        #合并所有文档文本。 list[str]
         all_texts = np.concatenate([topic.documents for topic in self.topic_lis], axis = 0)
-        # 生成文档的索引。
+        # 生成文档的索引。主题的类别序号，eg: [0 0 0 0 0 0 0 0 0 0 0 0 1 1 1 1 1 1 1 1 1]
         all_document_indices = np.concatenate([np.repeat(i, topic.document_embeddings_hd.shape[0]) for i, topic in enumerate(self.topic_lis)], axis = 0)
-        # 获取每个主题的名称。
+        # 获取每个主题的名称。list[str], eg: ['Topic 0: \n"Convenient meal delivery service"\n', 'Topic 1: \nTitle: Online Food Ordering Convenience\n']
         class_names = [str(topic) for topic in self.topic_lis]
         # 调用 visualize_clusters_dynamic 函数绘制动态聚类可视化。
         self.clusterer.visualize_clusters_dynamic(all_document_embeddings, all_document_indices, all_texts, class_names)
-    
+        return True
     def repr_topics(self) -> str:
         """
         Returns a string explanation of the topics.
