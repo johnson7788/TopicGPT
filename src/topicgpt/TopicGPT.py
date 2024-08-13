@@ -72,6 +72,9 @@ class TopicGPT:
         assert n_topwords_description > 0, "用于主题描述的 top words 数量需要是一个正整数。"
         assert len(topword_extraction_methods) > 0, "您需要提供至少一种 topword 提取方法。tfidf或者cosine_similarity或topword_enhancement"
         assert n_topwords_description <= n_topwords, "用于主题描述的 top words 数量需要小于或等于 top words 的数量。"
+        self.api_key = api_key
+        self.base_url = base_url
+        self.azure_endpoint = azure_endpoint
         self.client = Client(api_key = api_key, base_url=base_url, azure_endpoint = azure_endpoint,http_client=http_client)
         self.n_topics = n_topics
         self.openai_prompting_model = openai_prompting_model
