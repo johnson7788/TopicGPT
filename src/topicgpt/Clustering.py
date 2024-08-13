@@ -202,7 +202,7 @@ class Clustering_and_DimRed():
     def visualize_clusters_dynamic(self, embeddings: np.ndarray, labels: np.ndarray, texts: list[str],
                                    class_names: list[str] = None):
         """
-        此方法使用 Plotly 进行动态聚类可视化，并支持悬停显示文本信息。
+        此方法使用 Plotly 进行动态聚类可视化，并支持悬停显示文本信息。会自动弹出1个网页，显示绘图结果
         UMAP 将嵌入降维到二维，然后在二维平面上绘制聚类结果，点的颜色表示聚类标签。
             使用 UMAP 将高维嵌入降维到二维。
             创建一个包含二维坐标和文本信息的数据框（DataFrame）。

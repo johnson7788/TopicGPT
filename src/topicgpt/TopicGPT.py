@@ -11,9 +11,6 @@ from topicgpt.TopicRepresentation import Topic
 from topicgpt.Client import Client
 import topicgpt.TopicRepresentation as TopicRepresentation
 
-embeddings_path= "SavedEmbeddings/embeddings.pkl" #global variable for the path to the embeddings
-topic_path= "SavedEmbeddings/topic.pkl" #global variable for the path to the embeddings
-
 class TopicGPT:
     def __init__(self,
              api_key: str = "",
@@ -30,7 +27,7 @@ class TopicGPT:
              embedding_model: str = "text-embedding-ada-002",
              max_number_of_tokens_embedding: int = 8191,
              use_saved_embeddings: bool = True,
-             path_saved_embeddings: str = embeddings_path,
+             path_saved_embeddings: str = "",
              clusterer: Clustering_and_DimRed = None,
              n_topwords: int = 2000,
              n_topwords_description: int = 500,
@@ -39,7 +36,7 @@ class TopicGPT:
              enhancer: TopwordEnhancement = None,
              topic_prompting: TopicPrompting = None,
              use_saved_topics: bool = True, #使用缓存
-             path_saved_topics: str = topic_path,
+             path_saved_topics: str = "",
              verbose: bool = True) -> None:
         
         """
@@ -93,8 +90,10 @@ class TopicGPT:
         self.topic_prompting = topic_prompting	
         self.use_saved_embeddings = use_saved_embeddings
         self.use_saved_topics = use_saved_topics
+        self.path_saved_embeddings = path_saved_embeddings
         self.path_saved_topics = path_saved_topics
         self.verbose = verbose
+
 
         self.compute_vocab_hyperparams["verbose"] = self.verbose
 
@@ -368,13 +367,15 @@ class TopicGPT:
         if return_function_result:
             return function_result
         
-    def save_embeddings(self, path: str = embeddings_path) -> None:
+    def save_embeddings(self, path: str = None) -> None:
         """
         Saves the document and vocabulary embeddings to a pickle file for later re-use.
 
         Args:
             path (str, optional): The path to save the embeddings to. Defaults to embeddings_path.
         """
+        if path is None:
+            path = self.path_saved_embeddings
         print(f"保存embedding到{path}")
         assert self.document_embeddings is not None and self.vocab_embeddings is not None, "You need to compute the embeddings first."
 
@@ -384,13 +385,15 @@ class TopicGPT:
         with open(path, "wb") as f:
             pickle.dump([self.document_embeddings, self.vocab_embeddings], f)
         print(f"保存embedding到{path}成功")
-    def save_topics(self, path: str = topic_path) -> None:
+    def save_topics(self, path: str = None) -> None:
         """
         保存主题相关到本地
 
         Args:
             path (str, optional): The path to save the embeddings to. Defaults to embeddings_path.
         """
+        if path is None:
+            path = self.path_saved_topics
         print(f"保存主题到{path}")
         assert self.topic_lis is not None and self.vocab_embeddings is not None, "你应该先计算好主题，然后保存主题"
         assert self.document_embeddings is not None and self.vocab is not None, "你应该先计算好主题，然后保存主题"
