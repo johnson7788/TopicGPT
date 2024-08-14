@@ -274,22 +274,22 @@ class ExtractTopWords:
             np.ndarray: Word-topic matrix.
         """
 
-
+        # 变成numpy array数组
         corpus_arr = np.array(corpus) 
-
+        # consider_outliers考虑不考虑有啥区别， word_topic_mat的格式[vocab_size, num_topics],统计每个词在每个主题下的出现次数
         if consider_outliers:
             word_topic_mat = np.zeros((len(vocab), len((np.unique(labels)))))
         else:
             word_topic_mat = np.zeros((len(vocab), len((np.unique(labels)))))
         
-        for i, label in tqdm(enumerate(np.unique(labels)), desc="Computing word-topic matrix", total=len(np.unique(labels))):
-            topic_docs = corpus_arr[labels == label]
+        for i, label in tqdm(enumerate(np.unique(labels)), desc="计算词主题矩阵", total=len(np.unique(labels))):
+            topic_docs = corpus_arr[labels == label]  #对应聚类标签label的语句
             topic_doc_string = " ".join(topic_docs)
-            topic_doc_words = jieba.lcut(topic_doc_string)
-            topic_doc_counter = Counter(topic_doc_words)
+            topic_doc_words = jieba.lcut(topic_doc_string)  #重新分词？？
+            topic_doc_counter = Counter(topic_doc_words)  #计算词频
 
             word_topic_mat[:, i] = np.array([topic_doc_counter.get(word, 0) for word in vocab])
-        
+        #词典中的每个词
         return word_topic_mat
 
     def extract_topwords_tfidf(self, word_topic_mat: np.ndarray, vocab: list[str], labels: np.ndarray, top_n_words: int = 10) -> dict:
@@ -331,7 +331,7 @@ class ExtractTopWords:
                 top_words[topic] = [vocab[word_idx] for word_idx in indices]
                 top_word_scores[topic] = [tfidf[word_idx, topic] for word_idx in indices]
 
-
+        # {0:[vocabs],1:[vocabs]}, top_word_scores: {0:[scores],1:[scores]}, top_words长度是vocabs的长度, scores长度是vocabs的长度
         return top_words, top_word_scores
     
     def compute_embedding_similarity_centroids(self, vocab: list[str], vocab_embedding_dict: dict, umap_mapper: umap.UMAP, centroid_dict: dict, reduce_vocab_embeddings: bool = False, reduce_centroid_embeddings: bool = False) -> np.ndarray:

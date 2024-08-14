@@ -298,34 +298,38 @@ def extract_topics_no_new_vocab_computation(corpus: list[str], vocab: list[str],
             raise ValueError("topword_extraction_methods can only contain 'tfidf' and 'cosine_similarity'")
     if topword_extraction_methods == []:
         raise ValueError("topword_extraction_methods cannot be empty")
-    #获取
+    #获取document_embeddings:[document_num, hidden_size], 聚类的标签labels: [1,1,0,0,1,1,...], umap_mapper
     dim_red_embeddings, labels, umap_mapper = clusterer.cluster_and_reduce(document_embeddings)  # get dimensionality reduced embeddings, their labels and the umap mapper object
-
+    # 去除后的标签
     unique_labels = np.unique(labels)  # In case the cluster labels are not consecutive numbers, we need to map them to consecutive 
     label_mapping = {label: i for i, label in enumerate(unique_labels[unique_labels != -1])}
-    label_mapping[-1] = -1
+    label_mapping[-1] = -1   #标签
     labels = np.array([label_mapping[label] for label in labels])
 
     extractor = ExtractTopWords()
+    # centroid_dict: dict, 每个类别的质心，{0:hidden_size, 1:hidden_size, ...}
     centroid_dict = extractor.extract_centroids(document_embeddings, labels)  # get the centroids of the clusters
-    # 质心
+    # centroid_arr: 质心列表
     centroid_arr = np.array(list(centroid_dict.values()))
     if centroid_arr.ndim == 1:
         centroid_arr = centroid_arr.reshape(-1, 1)  #质心个数为1的时候
-    assert centroid_dict, "没有提取到质心，应该是哪里有问题"
+    assert centroid_dict, "没有提取到质心，应该是哪里有问题，"
+    # 质心在低维空间中的表示, dim_red_centroids: [cluster_label_num, low_dim_size]
     dim_red_centroids = umap_mapper.transform(np.array(list(centroid_dict.values())))  # map the centroids to low dimensional space
-
+    # dict, {0:[], 1:[], ...} # 低维
     dim_red_centroid_dict = {label: centroid for label, centroid in zip(centroid_dict.keys(), dim_red_centroids)}
-
+    #word_topic_mat的格式[vocab_size, num_topics],统计每个词在每个主题下的出现次数
     word_topic_mat = extractor.compute_word_topic_mat(corpus, vocab, labels, consider_outliers = consider_outliers)  # compute the word-topic matrix of the corpus
     if "tfidf" in topword_extraction_methods:
+        # # {0:[vocabs],1:[vocabs]}, top_word_scores: {0:[scores],1:[scores]}, cluster_label ,top_words长度是vocabs的长度, scores长度是vocabs的长度
         tfidf_topwords, tfidf_dict = extractor.extract_topwords_tfidf(word_topic_mat = word_topic_mat, vocab = vocab, labels = labels, top_n_words = n_topwords)  # extract the top-words according to tfidf
     if "cosine_similarity" in topword_extraction_methods:
+        # # {0:[vocabs],1:[vocabs]}, top_word_scores: {0:[scores],1:[scores]}, cluster_label ,top_words长度是vocabs的长度, scores长度是vocabs的长度
         cosine_topwords, cosine_dict = extractor.extract_topwords_centroid_similarity(word_topic_mat = word_topic_mat, vocab = vocab, vocab_embedding_dict = vocab_embeddings, centroid_dict= dim_red_centroid_dict, umap_mapper = umap_mapper, top_n_words = n_topwords, reduce_vocab_embeddings = True, reduce_centroid_embeddings = False, consider_outliers = True)
                                                                                            
     topics = []
     for i, label in enumerate(np.unique(labels)):
-        if label < -0.5: # dont include outliers
+        if label < -0.5: # dont include outliers, 异常点的标签是-1
             continue
         topic_idx = f"{label}"
         documents = [doc for j, doc in enumerate(corpus) if labels[j] == label]
