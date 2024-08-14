@@ -246,7 +246,7 @@ class TopicGPT:
         # 流程
         计算单词表： compute_corpus_vocab，停用词、词频和文档频率初始化：使用 jieba.lcut 分词，将每个文档切分成词语列表。词频计算：指定的频率筛选，词汇表排序和返回：
         嵌入计算： 分别计算整个文档的嵌入和单词表的嵌入
-        主题提取： 使用extract_topics_no_new_vocab_computation，降维和聚类，提取中心点
+        主题提取： 使用extract_topics_no_new_vocab_computation，降维和聚类，提取中心点，每个文档降维，然后计算文档和质心之间的相似性
         主题描述： 使用describe_topic_words，给聚类的名称总结1个名字，然后写一些描述
         Args:
             corpus (list[str]): 所有文档预料

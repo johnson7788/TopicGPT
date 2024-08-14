@@ -332,17 +332,17 @@ def extract_topics_no_new_vocab_computation(corpus: list[str], vocab: list[str],
         if label < -0.5: # dont include outliers, 异常点的标签是-1
             continue
         topic_idx = f"{label}"
-        documents = [doc for j, doc in enumerate(corpus) if labels[j] == label]
-        embeddings_hd = document_embeddings[labels == label]
-        embeddings_ld = dim_red_embeddings[labels == label]
-        centroid_hd = centroid_dict[label]
-        centroid_ld = dim_red_centroids[label]
-        
+        documents = [doc for j, doc in enumerate(corpus) if labels[j] == label] # 过滤出满足这个标签的文本数据
+        embeddings_hd = document_embeddings[labels == label]  #[labels对应的数量,hidden_size]
+        embeddings_ld = dim_red_embeddings[labels == label]  ##[labels对应的数量,5]
+        centroid_hd = centroid_dict[label]  # 对应标签的高阶质心
+        centroid_ld = dim_red_centroids[label] #低级质心
+        # 计算文档和质心之间的相似性， centroid_similarity: list, 每个质心
         centroid_similarity = np.dot(embeddings_ld, centroid_ld)/(np.linalg.norm(embeddings_ld, axis = 1)*np.linalg.norm(centroid_ld))
-        similarity_sorting = np.argsort(centroid_similarity)[::-1]
-        documents = [documents[i] for i in similarity_sorting]
-        embeddings_hd = embeddings_hd[similarity_sorting]
-        embeddings_ld = embeddings_ld[similarity_sorting]
+        similarity_sorting = np.argsort(centroid_similarity)[::-1]  #根据相似度排序，[ 4  9  3  8 10  2  6 11  7  1  5  0]
+        documents = [documents[i] for i in similarity_sorting] # 文档
+        embeddings_hd = embeddings_hd[similarity_sorting] # [文档数量,hidden_size]
+        embeddings_ld = embeddings_ld[similarity_sorting] # [文档数量,hidden_size]
 
         try:
             if type(cosine_topwords[label]) == dict:

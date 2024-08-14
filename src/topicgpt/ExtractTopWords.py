@@ -406,5 +406,5 @@ class ExtractTopWords:
                 topic_similarity_mat = similarity_mat[:, topic] * word_topic_mat[:, topic]
                 top_words[topic] = [vocab[word_idx] for word_idx in np.argsort(-topic_similarity_mat)[:top_n_words]]
                 top_word_scores[topic] = [similarity_mat[word_idx, topic] for word_idx in np.argsort(-similarity_mat[:, topic])[:top_n_words]]
-
+        # {0: ['word1', 'word2', ...], 1: ['word3', 'word4', ...], ...}, # 单词标签对应
         return top_words, top_word_scores
