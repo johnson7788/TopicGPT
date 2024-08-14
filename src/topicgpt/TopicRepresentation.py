@@ -298,7 +298,7 @@ def extract_topics_no_new_vocab_computation(corpus: list[str], vocab: list[str],
             raise ValueError("topword_extraction_methods can only contain 'tfidf' and 'cosine_similarity'")
     if topword_extraction_methods == []:
         raise ValueError("topword_extraction_methods cannot be empty")
-
+    #获取
     dim_red_embeddings, labels, umap_mapper = clusterer.cluster_and_reduce(document_embeddings)  # get dimensionality reduced embeddings, their labels and the umap mapper object
 
     unique_labels = np.unique(labels)  # In case the cluster labels are not consecutive numbers, we need to map them to consecutive 

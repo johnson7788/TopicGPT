@@ -110,18 +110,19 @@ class ExtractTopWords:
         计算语料库的词汇表，并对语料库进行预处理。
         输入包括文档列表 corpus 和一系列可选参数。
         返回值是词汇表的排序列表。
+        停用词、词频和文档频率初始化：使用 jieba.lcut 分词，将每个文档切分成词语列表。词频计算：指定的频率筛选，词汇表排序和返回：
         Args:
-            corpus (list[str]): List of documents.
-            remove_stopwords (bool, optional): Whether to remove stopwords.
-            remove_punction (bool, optional): Whether to remove punctuation.
-            min_word_length (int, optional): Minimum word length to retain.
-            max_word_length (int, optional): Maximum word length to retain.
-            remove_short_words (bool, optional): Whether to remove short words.
-            remove_numbers (bool, optional): Whether to remove numbers.
-            verbose (bool, optional): Whether to print progress and describe what is happening.
-            min_doc_frequency (int, optional): Minimum number of documents a word should appear in to be considered in the vocabulary.
-            min_freq (float, optional): Minimum frequency percentile of words to be considered in the vocabulary.
-            max_freq (float, optional): Maximum frequency percentile of words to be considered in the vocabulary.
+            corpus: list[str]：文档列表，即语料库。
+            remove_stopwords: bool：是否移除停用词（如“的”、“是”等高频无意义的词）。
+            remove_punction: bool：是否移除标点符号。
+            min_word_length: int：保留的最小词长。
+            max_word_length: int：保留的最大词长。
+            remove_short_words: bool：是否移除长度小于 min_word_length 的词。
+            remove_numbers: bool：是否移除包含数字的词。
+            verbose: bool：是否输出进度信息及其他描述信息。
+            min_doc_frequency: int：词语在多少文档中出现才会被纳入词汇表。
+            min_freq: float：词语在语料库中出现频率的最小百分位数。
+            max_freq: float：词语在语料库中出现频率的最大百分位数。
 
         Returns:
             list[str]: List of words in the corpus sorted alphabetically.
