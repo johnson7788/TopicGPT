@@ -1,7 +1,7 @@
+import copy
+import re
 from typing import Callable
 import numpy as np
-
-basic_instruction = "You are a helpful assistant. You are excellent at inferring topics from top-words extracted via topic-modelling. You make sure that everything you output is strictly based on the provided text."
 
 class TopwordEnhancement:
     def __init__(
@@ -10,7 +10,7 @@ class TopwordEnhancement:
             openai_model: str = "gpt-3.5-turbo",
             max_context_length: int = 4000,
             openai_model_temperature: float = 0.5,
-            basic_model_instruction: str = basic_instruction,
+            basic_model_instruction: str = "",
             corpus_instruction: str = "",
             embedder=None
     ) -> None:
@@ -37,13 +37,26 @@ class TopwordEnhancement:
         self.openai_model = openai_model
         self.max_context_length = max_context_length
         self.openai_model_temperature = openai_model_temperature
-        self.basic_model_instruction = basic_model_instruction
+        if basic_model_instruction:
+            self.basic_model_instruction_zh = basic_model_instruction
+            self.basic_model_instruction_en = basic_model_instruction
+        else:
+            self.basic_model_instruction_zh = "你是一个乐于助人的助手，擅长从主题模型提取的关键词中推断出主题。你确保输出的所有内容都严格基于所提供的文本。"
+            self.basic_model_instruction_en = "You are a helpful assistant. You are excellent at inferring topics from top-words extracted via topic-modelling. You make sure that everything you output is strictly based on the provided text."
         self.corpus_instruction = f"下面是主题识别的语料库信息: {corpus_instruction}"
         self.embedder = embedder
-        self.topic_name_prompt_function_zh = lambda tws: f"请给我这些词语的共同主题：{tws}。只需提供主题标题，其他内容不用提供。请确保标题精准，且不超过5个字，最好更短。"
-        self.topic_name_prompt_function_en = lambda tws: f"Please give me the common topic of those words: {tws}. Give me only the title of the topic and nothing else please. Make sure the title is precise and not longer than 5 words, ideally even shorter."
-        self.topic_description_prompt_function_zh = lambda tws: f"请给我这些词语的共同主题：{tws}。同时描述该主题的各个方面和子主题。请确保描述简短精练！每个子方面的描述不超过5个字！！！"
-        self.topic_description_prompt_function_en = lambda tws: f"Please give me the common topic of those words: {tws}. Also describe the various aspects and sub-topics of the topic. Make sure the descriptions are short and concise! Do not cite more than 5 words per sub-aspect!!!"
+        self.topic_name_description_prompt_function_zh = lambda tws: f"""我会提供一些词语，请提供这些词语的共同主题、描述。主题不超过5个字。
+词语列表: {tws}
+使用中文回答。输出格式如下:
+Topic:
+Description:
+"""
+        self.topic_name_description_prompt_function_en = lambda tws: f"""I'll provide some words. Please provide the common topic and descriptions for these words. topic should not exceed 5 words.
+Word list: {tws}
+Respond in English. The output format is as follows:
+Topic:
+Description:
+"""
 
     def __str__(self) -> str:
         repr = f"TopwordEnhancement(openai_model = {self.openai_model})"
@@ -94,9 +107,9 @@ class TopwordEnhancement:
         topwords = topwords[:n_words]
         topwords = np.array(topwords)
 
-        # if too many topwords are given, use only the first part of the topwords that fits into the context length, 计算上下文长度不超过llm长度
+        print("开始计算上下文长度不超过llm长度")
         tokens_cumsum = np.cumsum([len(self.embedder.encoding_for_model(tw + ", ")) for tw in topwords]) + len(
-            self.embedder.encoding_for_model(self.basic_model_instruction + " " + self.corpus_instruction))
+            self.embedder.encoding_for_model(self.basic_model_instruction_zh + " " + self.corpus_instruction))
         if tokens_cumsum[-1] > self.max_context_length:
             print(
                 "Too many topwords given. Using only the first part of the topwords that fits into the context length. Number of topwords used: ",
@@ -104,14 +117,15 @@ class TopwordEnhancement:
             n_words = np.argmax(tokens_cumsum > self.max_context_length)
             topwords = topwords[:n_words]
 
+        messages = [
+            {"role": "system",
+             "content": self.basic_model_instruction_zh + " " + self.corpus_instruction},
+            {"role": "user", "content": query_function(topwords)},
+        ]
+        print(f"最终生成的messages是: {messages}")
         completion = self.client.chat.completions.create(model=self.openai_model,
-                                                         messages=[
-                                                             {"role": "system",
-                                                              "content": self.basic_model_instruction + " " + self.corpus_instruction},
-                                                             {"role": "user", "content": query_function(topwords)},
-                                                         ],
+                                                         messages=messages,
                                                          temperature=self.openai_model_temperature)
-
         return completion
 
     def describe_topic_topwords_str(self,
@@ -184,7 +198,7 @@ class TopwordEnhancement:
 
         # if too many documents are given, use only the first part of the documents that fits into the context length
         tokens_cumsum = np.cumsum([len(self.embedder.encoding_for_model(doc + ", ")) for doc in documents]) + len(
-            self.embedder.encoding_for_model(self.basic_model_instruction + " " + self.corpus_instruction))
+            self.embedder.encoding_for_model(self.basic_model_instruction_zh + " " + self.corpus_instruction))
         if tokens_cumsum[-1] > self.max_context_length:
             print(
                 "Too many documents given. Using only the first part of the documents that fits into the context length. Number of documents used: ",
@@ -195,7 +209,7 @@ class TopwordEnhancement:
         completion = self.client.chat.completions.create(model=self.openai_model,
                                                          messages=[
                                                              {"role": "system",
-                                                              "content": self.basic_model_instruction + " " + self.corpus_instruction},
+                                                              "content": self.basic_model_instruction_zh + " " + self.corpus_instruction},
                                                              {"role": "user", "content": query_function(documents)},
                                                          ],
                                                          temperature=self.openai_model_temperature)
@@ -308,3 +322,82 @@ class TopwordEnhancement:
                                                                              n_documents, query_function,
                                                                              sampling_strategy)
         return completion.choices[0].message.content
+
+    def extract_topic_and_description(self, text):
+        topic_pattern = r"Topic:\s*(.*)"
+        description_pattern = r"Description:\s*(.*)"
+
+        topic_match = re.search(topic_pattern, text)
+        description_match = re.search(description_pattern, text, re.DOTALL)
+
+        topic = topic_match.group(1) if topic_match else None
+        description = description_match.group(1).replace("\n", "").strip() if description_match else None
+
+        return topic, description
+    def generate_topic_name_and_describe(self,
+                                topwords: list[str],
+                                n_words: int = None,
+                                language: str = "english"
+                                ) -> str:
+        """
+        生成一个主题名称。基于 topwords 和查询函数来生成主题名称。
+        Args:
+            topwords (list[str]): List of topwords.
+            n_words (int, optional): Number of words to use for the query. If None, all words are used.
+            language: 语言
+        Returns:
+            str: A topic name generated by the model in the form of a string.
+        """
+        if n_words is None:
+            n_words = len(topwords)
+
+        if type(topwords) == dict:
+            topwords = topwords[0]
+
+        topwords = topwords[:n_words]
+        topwords = np.array(topwords)
+        print("开始计算上下文长度不超过llm长度")
+        tokens_cumsum = np.cumsum([len(self.embedder.encoding_for_model(tw + ", ")) for tw in topwords]) + len(
+            self.embedder.encoding_for_model(self.basic_model_instruction_zh + " " + self.corpus_instruction))
+        if tokens_cumsum[-1] > self.max_context_length:
+            print(
+                "Too many topwords given. Using only the first part of the topwords that fits into the context length. Number of topwords used: ",
+                np.argmax(tokens_cumsum > self.max_context_length))
+            n_words = np.argmax(tokens_cumsum > self.max_context_length)
+            topwords = topwords[:n_words]
+        if language == "chinese":
+            messages = [
+                {"role": "system","content": self.basic_model_instruction_zh + " " + self.corpus_instruction},
+                {"role": "user", "content": self.topic_name_description_prompt_function_zh(topwords)},
+            ]
+        else:
+            messages = [
+                {"role": "system","content": self.basic_model_instruction_en + " " + self.corpus_instruction},
+                {"role": "user", "content": self.topic_name_description_prompt_function_en(topwords)},
+            ]
+        max_retries = 5
+        retries = 0
+        all_errors = []
+        error_messages = ""
+        while retries < max_retries:
+            try:
+                new_messages = copy.deepcopy(messages)
+                if error_messages and retries % 2 == 1:  # 奇数次的时候，加上错误日志
+                    new_messages[-1]["content"] += "\n{error_messages}"
+                print(f"最终生成的messages是: {new_messages}")
+                completion = self.client.chat.completions.create(model=self.openai_model,
+                                                                 messages=new_messages,
+                                                                 temperature=self.openai_model_temperature)
+                output = completion.choices[0].message.content
+                assert "Topic:" in output, "output does not contain 'Topic:'"
+                assert "Description:" in output, "output does not contain 'Description:'"
+                topic, description = self.extract_topic_and_description(text=output)
+                assert topic, "Topic: format is incorrect"
+                assert description, "Description: format is incorrect"
+                return topic, description
+            except Exception as e:
+                retries += 1
+                error_messages = f"Your last response was incorrect because {e}"
+                all_errors.append(e)
+                print(f"重试了{max_retries}次，还是没有输出符合要求,错误是:{error_messages}")
+        return "未知主题", "未知描述"

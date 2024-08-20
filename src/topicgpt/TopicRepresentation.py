@@ -675,16 +675,8 @@ def describe_and_name_topics(
    
     for topic in tqdm(topics,desc="聚类主题解释和描述"):  #eg: topic:实例
         tws = topic.top_words[topword_method]  #该topic下的单词
-        if language == "english":
-            topic_name_prompt_function = enhancer.topic_name_prompt_function_en
-            topic_description_prompt_function = enhancer.topic_description_prompt_function_en
-        else:
-            topic_name_prompt_function = enhancer.topic_name_prompt_function_zh
-            topic_description_prompt_function = enhancer.topic_description_prompt_function_zh
-        topic_name = enhancer.generate_topic_name_str(tws, n_words=n_words,query_function=topic_name_prompt_function)  #生成topic的名称，根据提供的topic下的词语
-        topic_description = enhancer.describe_topic_topwords_str(tws, n_words = n_words, query_function=topic_description_prompt_function)
+        topic_name, topic_description = enhancer.generate_topic_name_and_describe(tws, n_words = n_words, language=language)
         topic.set_topic_name(topic_name)
         topic.set_topic_description(topic_description)
-        
     return topics
 
