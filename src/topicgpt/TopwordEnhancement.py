@@ -3,6 +3,17 @@ import re
 from typing import Callable
 import numpy as np
 
+def check_has_chinese(text):
+    """
+    如果存在中文，返回True，否则返回False
+    :param text:
+    :return:  bool
+    """
+    if not isinstance(text, str):
+        return False
+    res = re.findall('[\u4e00-\u9fa5]+', text)
+    return bool(res)
+
 class TopwordEnhancement:
     def __init__(
             self,
@@ -41,21 +52,21 @@ class TopwordEnhancement:
             self.basic_model_instruction_zh = basic_model_instruction
             self.basic_model_instruction_en = basic_model_instruction
         else:
-            self.basic_model_instruction_zh = "你是一个乐于助人的助手，擅长从主题模型提取的关键词中推断出主题。你确保输出的所有内容都严格基于所提供的文本。"
+            self.basic_model_instruction_zh = "你是一个乐于助人的助手，擅长从主题模型提取的关键词中推断出主题。你确保输出的所有内容都严格基于所提供的文本。使用中文回答问题。"
             self.basic_model_instruction_en = "You are a helpful assistant. You are excellent at inferring topics from top-words extracted via topic-modelling. You make sure that everything you output is strictly based on the provided text."
         self.corpus_instruction = f"下面是主题识别的语料库信息: {corpus_instruction}"
         self.embedder = embedder
         self.topic_name_description_prompt_function_zh = lambda tws: f"""我会提供一些词语，请提供这些词语的共同主题、描述。主题不超过5个字。
 词语列表: {tws}
-使用中文回答。输出格式如下:
-Topic:
-Description:
+输出格式如下:
+TOPIC:
+DESCRIPTION:
 """
         self.topic_name_description_prompt_function_en = lambda tws: f"""I'll provide some words. Please provide the common topic and descriptions for these words. topic should not exceed 5 words.
 Word list: {tws}
-Respond in English. The output format is as follows:
-Topic:
-Description:
+The output format is as follows:
+TOPIC:
+DESCRIPTION:
 """
 
     def __str__(self) -> str:
@@ -323,9 +334,13 @@ Description:
                                                                              sampling_strategy)
         return completion.choices[0].message.content
 
-    def extract_topic_and_description(self, text):
-        topic_pattern = r"Topic:\s*(.*)"
-        description_pattern = r"Description:\s*(.*)"
+    def extract_topic_and_description(self, text, language="english"):
+        if language == "chinese":
+            topic_pattern = r"主题:\s*(.*)"
+            description_pattern = r"描述:\s*(.*)"
+        else:
+            topic_pattern = r"TOPIC:\s*(.*)"
+            description_pattern = r"DESCRIPTION:\s*(.*)"
 
         topic_match = re.search(topic_pattern, text)
         description_match = re.search(description_pattern, text, re.DOTALL)
@@ -365,15 +380,16 @@ Description:
                 np.argmax(tokens_cumsum > self.max_context_length))
             n_words = np.argmax(tokens_cumsum > self.max_context_length)
             topwords = topwords[:n_words]
+        topwords_str = ",".join(topwords)
         if language == "chinese":
             messages = [
                 {"role": "system","content": self.basic_model_instruction_zh + " " + self.corpus_instruction},
-                {"role": "user", "content": self.topic_name_description_prompt_function_zh(topwords)},
+                {"role": "user", "content": self.topic_name_description_prompt_function_zh(topwords_str)},
             ]
         else:
             messages = [
                 {"role": "system","content": self.basic_model_instruction_en + " " + self.corpus_instruction},
-                {"role": "user", "content": self.topic_name_description_prompt_function_en(topwords)},
+                {"role": "user", "content": self.topic_name_description_prompt_function_en(topwords_str)},
             ]
         max_retries = 5
         retries = 0
@@ -383,21 +399,30 @@ Description:
             try:
                 new_messages = copy.deepcopy(messages)
                 if error_messages and retries % 2 == 1:  # 奇数次的时候，加上错误日志
-                    new_messages[-1]["content"] += "\n{error_messages}"
+                    new_messages[-1]["content"] += f"\n{error_messages}"
                 print(f"最终生成的messages是: {new_messages}")
                 completion = self.client.chat.completions.create(model=self.openai_model,
                                                                  messages=new_messages,
                                                                  temperature=self.openai_model_temperature)
                 output = completion.choices[0].message.content
-                assert "Topic:" in output, "output does not contain 'Topic:'"
-                assert "Description:" in output, "output does not contain 'Description:'"
-                topic, description = self.extract_topic_and_description(text=output)
-                assert topic, "Topic: format is incorrect"
-                assert description, "Description: format is incorrect"
+                if language == "chinese":
+                    assert check_has_chinese(text=output),"output does not contain chinese characters"
+                    assert "主题:" in output, "输出不包含 '主题:'"
+                    assert "描述:" in output, "输出不包含 '描述:'"
+                else:
+                    assert "TOPIC:" in output, "output does not contain 'TOPIC:'"
+                    assert "DESCRIPTION:" in output, "output does not contain 'DESCRIPTION:'"
+                topic, description = self.extract_topic_and_description(text=output, language=language)
+                if language == "chinese":
+                    assert topic, "TOPIC: 格式错误"
+                    assert description, "DESCRIPTION: 格式错误"
+                else:
+                    assert topic, "TOPIC: format is incorrect"
+                    assert description, "DESCRIPTION: format is incorrect"
                 return topic, description
             except Exception as e:
                 retries += 1
                 error_messages = f"Your last response was incorrect because {e}"
                 all_errors.append(e)
-                print(f"重试了{max_retries}次，还是没有输出符合要求,错误是:{error_messages}")
+                print(f"重试了{retries}次，还是没有输出符合要求,错误是:{error_messages}")
         return "未知主题", "未知描述"
