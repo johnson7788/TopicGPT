@@ -229,7 +229,7 @@ class GetEmbeddingsLocal:
         return {"embeddings": embeddings, "corpus": corpus, "errors": errors}
 
 
-    def get_embeddings(self, corpus: list[str]) -> dict:
+    def get_embeddings(self, corpus: list[str], with_split_long=True) -> dict:
         """
         Computes the embeddings of a corpus.
 
@@ -240,8 +240,10 @@ class GetEmbeddingsLocal:
         Returns:
             dict: A dictionary containing the embeddings as a matrix and the corpus as a list of strings.
         """
-
-        corpus_split = self.split_long_docs(corpus)
+        if with_split_long:
+            corpus_split = self.split_long_docs(corpus)
+        else:
+            corpus_split = corpus
         corpus_emb = self.get_embeddings_doc_split(corpus_split)
         self.corpus_emb = corpus_emb
         res = self.convert_api_res_list(corpus_emb)

@@ -39,6 +39,8 @@ class TopicGPT:
                  topic_prompting: TopicPrompting = None,
                  use_saved_topics: bool = True,  # 使用缓存
                  path_saved_topics: str = "",
+                 documents:  list[dict] = [],
+                 corpus: list[str] = [],
                  verbose: bool = True) -> None:
 
         """
@@ -62,6 +64,8 @@ class TopicGPT:
             compute_vocab_hyperparams (dict, optional)：计算词汇嵌入的超参数。有关更多细节，请参阅文件 ExtractTopWords/ExtractTopWords.py。
             enhancer (TopwordEnhancement, optional)：topword 增强对象。用于描述主题。在 “TopwordEnhancement/TopwordEnhancement.py” 文件夹中查找该类。如果为 None，则使用具有默认参数的 topword 增强对象。如果在此处指定了 OpenAI 模型，它将覆盖用于主题描述的 openai_prompting_model 参数。
             topic_prompting (TopicPrompting, optional)：用于制定提示的主题提示对象。在 “TopicPrompting/TopicPrompting.py” 文件夹中查找该类。如果为 None，则使用具有默认参数的主题提示对象。如果在此处指定了 OpenAI 模型，它将覆盖用于主题描述的 openai_prompting_model 参数。
+            documents: 输入的原始的文档数据，里面包含很多meta信息
+            corpus:  输入的原始的文本数据，文本数据列表
             verbose (bool, optional)：是否打印关于过程的详细信息。这可以通过传递的对象中的参数进行覆盖。
         """
         # 参数的检查
@@ -99,6 +103,8 @@ class TopicGPT:
         self.use_saved_topics = use_saved_topics
         self.path_saved_embeddings = path_saved_embeddings
         self.path_saved_topics = path_saved_topics
+        self.documents = documents # 占位用
+        self.corpus = corpus  # 占位用
         self.verbose = verbose
 
         self.compute_vocab_hyperparams["verbose"] = self.verbose
@@ -241,7 +247,7 @@ class TopicGPT:
             print(f"没有找到缓存的主题模型，请先训练主题模型。{self.path_saved_topics}")
             return False
 
-    def fit(self, corpus: list[str], verbose: bool = True):
+    def fit(self, documents: list[dict], verbose: bool = True):
         """
         # 流程
         计算单词表： compute_corpus_vocab，停用词、词频和文档频率初始化：使用 jieba.lcut 分词，将每个文档切分成词语列表。词频计算：指定的频率筛选，词汇表排序和返回：
@@ -249,19 +255,12 @@ class TopicGPT:
         主题提取： 使用extract_topics_no_new_vocab_computation，降维和聚类，提取中心点，每个文档降维，然后计算文档和质心之间的相似性
         主题描述： 使用describe_topic_words，给聚类的名称总结1个名字，然后写一些描述
         Args:
-            corpus (list[str]): 所有文档预料
+            documents (list[dict]): 所有文档预料
             verbose (bool, optional):  True or False. Defaults to True.
         """
-
-        self.corpus = corpus
+        self.documents = documents
+        self.corpus = [document['content'] for document in self.documents]
         # remove empty documents
-        len_before_removing = len(self.corpus)
-        while '' in self.corpus:
-            corpus.remove('')
-        len_after_removing = len(self.corpus)
-        if verbose:
-            print("Removed " + str(len_before_removing - len_after_removing) + " empty documents.")
-
         if self.use_saved_topics and os.path.exists(self.path_saved_topics):
             self.load_cache_topics()
         else:
@@ -287,7 +286,6 @@ class TopicGPT:
             if verbose:
                 print("使用LLM解释聚类后生成的主题")
             self.topic_lis = self.describe_topics(topics=self.topic_lis)
-
         self.topic_prompting.topic_lis = self.topic_lis
         self.topic_prompting.vocab_embeddings = self.vocab_embeddings
         self.topic_prompting.vocab = self.vocab
@@ -475,6 +473,8 @@ class TopicGPT:
             'topic_prompting': str(self.topic_prompting),  # 或根据需要自定义序列化方式
             'use_saved_topics': self.use_saved_topics,
             'path_saved_topics': self.path_saved_topics,
+            'documents': self.documents,
+            'corpus': self.corpus,
             'verbose': self.verbose,
         }
 
@@ -506,5 +506,7 @@ class TopicGPT:
             topic_prompting=None,  # 自定义加载方式
             use_saved_topics=data.get('use_saved_topics', True),
             path_saved_topics=data.get('path_saved_topics', ""),
+            documents = data.get('documents', []),
+            corpus =  data.get('corpus', []),
             verbose=data.get('verbose', True),
         )
