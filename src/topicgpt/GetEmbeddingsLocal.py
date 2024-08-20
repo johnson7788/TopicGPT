@@ -159,7 +159,7 @@ class GetEmbeddingsLocal:
 
 
 
-    def get_embeddings_doc_split(self, corpus: list[list[str]], n_tries=3) -> list[dict]:
+    def get_embeddings_doc_split(self, corpus: list[list[str]], n_tries=3, is_words=False) -> list[dict]:
         """
         Computes the embeddings of a corpus for split documents.
 
@@ -167,7 +167,7 @@ class GetEmbeddingsLocal:
             self: The instance of the class.
             corpus (list[list[str]]): List of strings to embed, where each element is a document represented by a list of its chunks.
             n_tries (int, optional): Number of tries to make an API call (default is 3).
-
+            is_words: 是否是单词的语料
         Returns:
             List[dict]: A list of dictionaries, where each dictionary contains the embedding of the document, the text of the document, and a list of errors that occurred during the embedding process.
         """
@@ -201,7 +201,11 @@ class GetEmbeddingsLocal:
             for api_res in api_res_doc:
                 if api_res["api_res"] is not None:
                     emb_lis.append(np.array(api_res["api_res"]["data"][0]["embedding"]))
-            text = " ".join(chunk_lis)
+            if is_words:
+                # 单词语料没必要在使用空格拼接了
+                text = chunk_lis
+            else:
+                text = " ".join(chunk_lis)
             embedding = np.mean(emb_lis, axis = 0)
             api_res_list.append(
                 {"embedding": embedding, 
@@ -229,23 +233,23 @@ class GetEmbeddingsLocal:
         return {"embeddings": embeddings, "corpus": corpus, "errors": errors}
 
 
-    def get_embeddings(self, corpus: list[str], with_split_long=True) -> dict:
+    def get_embeddings(self, corpus: list[str], is_words=False) -> dict:
         """
         Computes the embeddings of a corpus.
 
         Args:
             self: The instance of the class.
             corpus (list[str]): List of strings to embed, where each element in the list is a document.
-
+            is_words: 是否是单词语料，如果是单词，那么处理方式不一样
         Returns:
             dict: A dictionary containing the embeddings as a matrix and the corpus as a list of strings.
         """
         print(f"计算文档嵌入，一共 {len(corpus)} 个文档...")
-        if with_split_long:
+        if not is_words:
             corpus_split = self.split_long_docs(corpus)
         else:
             corpus_split = corpus
-        corpus_emb = self.get_embeddings_doc_split(corpus_split)
+        corpus_emb = self.get_embeddings_doc_split(corpus_split, is_words=is_words)
         self.corpus_emb = corpus_emb
         res = self.convert_api_res_list(corpus_emb)
         return res
