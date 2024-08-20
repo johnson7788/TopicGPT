@@ -652,7 +652,8 @@ def describe_and_name_topics(
     topics: list[Topic],
     enhancer: TopwordEnhancement,
     topword_method="tfidf",
-    n_words=500
+    n_words=500,
+    language="english"
 ) -> list[Topic]:
     """
     使用 TopwordEnhancement 对象来描述和命名主题：
@@ -663,8 +664,8 @@ def describe_and_name_topics(
         topics (list[Topic]): List of Topic objects.
         enhancer (TopwordEnhancement): Enhancer object to enhance the top-words and generate the description.
         topword_method (str, optional): Method to use for top-word extraction. Can be "tfidf" or "cosine_similarity" (default is "tfidf").
-        n_words (int, optional): Number of topwords to extract for the description and the name (default is 500).
-
+        n_words (int, optional): 使用topk个单词作为生成主题名称和描述的关键词。
+        language (str, optional): 生成的主题名称和描述的语言，默认是英语, english, chinese
     Returns:
         list[Topic]: List of Topic objects with the description and name added.
     """
