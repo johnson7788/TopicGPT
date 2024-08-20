@@ -18,7 +18,6 @@ class TopicGPT:
                  api_key: str = "",
                  base_url: str = "",
                  http_client=None,
-                 azure_endpoint: dict = {},
                  n_topics: int = None,
                  openai_prompting_model: str = "gpt-3.5-turbo-16k",
                  max_number_of_tokens: int = 16384,
@@ -80,8 +79,7 @@ class TopicGPT:
         assert n_topwords_description <= n_topwords, "用于主题描述的 top words 数量需要小于或等于 top words 的数量。"
         self.api_key = api_key
         self.base_url = base_url
-        self.azure_endpoint = azure_endpoint
-        self.client = Client(api_key=api_key, base_url=base_url, azure_endpoint=azure_endpoint, http_client=http_client)
+        self.client = Client(api_key=api_key, base_url=base_url, http_client=http_client)
         self.n_topics = n_topics
         self.openai_prompting_model = openai_prompting_model
         self.max_number_of_tokens = max_number_of_tokens
@@ -452,7 +450,6 @@ class TopicGPT:
         return {
             'api_key': self.api_key,
             'base_url': self.base_url,
-            'azure_endpoint': self.azure_endpoint,
             'n_topics': self.n_topics,
             'openai_prompting_model': self.openai_prompting_model,
             'max_number_of_tokens': self.max_number_of_tokens,
@@ -484,7 +481,6 @@ class TopicGPT:
         return cls(
             api_key=data.get('api_key', ""),
             base_url=data.get('base_url', ""),
-            azure_endpoint=data.get('azure_endpoint', {}),
             n_topics=data.get('n_topics'),
             openai_prompting_model=data.get('openai_prompting_model', "gpt-3.5-turbo-16k"),
             max_number_of_tokens=data.get('max_number_of_tokens', 16384),

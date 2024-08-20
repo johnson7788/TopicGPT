@@ -345,10 +345,9 @@ class ExtractTopWords:
             dict: Dictionary of topics and their top words.
         """
 
-
-        if min(labels) == -1:
-            word_topic_mat = word_topic_mat[:, 1:]
-
+        #
+        # if min(labels) == -1:
+        #     word_topic_mat = word_topic_mat[:, 1:]  # 默认最后一个维度是-1异常点的维度
 
         with warnings.catch_warnings():
             warnings.filterwarnings("ignore", category=RuntimeWarning)
@@ -398,7 +397,7 @@ class ExtractTopWords:
         
         centroid_arr = centroid_arr / np.linalg.norm(centroid_arr, axis=1).reshape(-1,1)
         
-
+        # eg: org_embedding_dim: 768
         org_embedding_dim = list(vocab_embedding_dict.values())[0].shape[0]
         vocab_arr = np.zeros((len(vocab), org_embedding_dim))
         for i, word in enumerate(vocab):
