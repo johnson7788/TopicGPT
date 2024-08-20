@@ -93,6 +93,7 @@ class Clustering_and_DimRed():
                 - umap_mapper (umap.UMAP): UMAP mapper for transforming new embeddings, especially embeddings of the vocabulary. (MAKE SURE TO NORMALIZE EMBEDDINGS AFTER USING THE MAPPER)
         """
         # 使用UMAP的超参数，注意检查超参数
+        print(f"开始使用UMAP进行降维训练，超参数为：{self.UMAP_hyperparams}, 输入数据的维度是:{embeddings.shape}")
         mapper = umap.UMAP(**self.UMAP_hyperparams).fit(embeddings)  # embeddings: [document_num, hidden_size]
         dim_red_embeddings = mapper.transform(embeddings)  # 开始降维 [document_num,dimension], eg: [23,5]
         dim_red_embeddings = dim_red_embeddings / np.linalg.norm(dim_red_embeddings, axis=1).reshape(-1, 1) # eg:[23,5]
@@ -109,6 +110,7 @@ class Clustering_and_DimRed():
             np.ndarray: Cluster labels.
         """
         ## 使用 HDBSCAN 进行聚类
+        print(f"开始使用HDBSCAN进行聚类，聚类参数为：{self.HDBSCAN_hyperparams}")
         labels = self.hdbscan.fit_predict(embeddings)
         if np.all(labels == -1):
             print(f"聚类后所有数据都是离群点，请检查数据或调整参数")
@@ -144,6 +146,7 @@ class Clustering_and_DimRed():
                 - umap_mapper (umap.UMAP): UMAP mapper for transforming new embeddings, especially embeddings of the vocabulary. (MAKE SURE TO NORMALIZE EMBEDDINGS AFTER USING THE MAPPER)
         """
         #dim_red_embeddings:[23,5], umap_mapper: UMAP(angular_rp_forest=True, metric='cosine', min_dist=0, n_components=5, n_jobs=1, random_state=42, verbose=True)
+        print(f"开始进行降维和聚类")
         dim_red_embeddings, umap_mapper = self.reduce_dimensions_umap(embeddings)
         clusters = self.cluster_hdbscan(dim_red_embeddings)  #clusters是聚类的类别信息，eg: [ 1  1  0  0  1  0  1  1  1  0  0 -1 -1  0  0  0  0  0  1  0  1  1  0]
         return dim_red_embeddings, clusters, umap_mapper

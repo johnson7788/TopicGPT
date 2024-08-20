@@ -289,14 +289,16 @@ class ExtractTopWords:
         #词典中的每个词
         return word_topic_mat
 
-    def compute_word_topic_mat_words(self, vocab: list[str], labels: np.ndarray, consider_outliers=False) -> np.ndarray:
+    def compute_word_topic_mat_words(self, words: list[str], vocab: list[str], labels: np.ndarray,
+                                     consider_outliers=False) -> np.ndarray:
         """
-        高效地计算词-主题矩阵，不用于主题问题，只用于词的聚类
-        输入是词汇表 vocab 和聚类标签 labels。
+        高效地计算词-主题矩阵，不用于主题聚类相关，只用于词的聚类
+        输入是words 和聚类标签 labels。
         返回值是词-主题矩阵。
 
         Args:
-            vocab (list[str]): List of words in the corpus.
+            words (list[str]): List of words in the corpus.
+            vocab (list[str]): 单词表，去重后的所有词。
             labels (np.ndarray): Cluster labels. -1 indicates outliers.
             consider_outliers (bool, optional): Whether to consider outliers when computing the top words. Defaults to False.
 
@@ -304,16 +306,24 @@ class ExtractTopWords:
             np.ndarray: Word-topic matrix.
         """
 
+        # 初始化矩阵，行数为词汇表的大小，列数为聚类的数量
         if consider_outliers:
             word_topic_mat = np.zeros((len(vocab), len(np.unique(labels))))
         else:
             word_topic_mat = np.zeros((len(vocab), len(np.unique(labels[labels != -1]))))
 
-        for i, label in tqdm(enumerate(np.unique(labels)), desc="计算词主题矩阵", total=len(np.unique(labels))):
+        # 将词汇映射到其在词汇表中的索引
+        word_to_index = {word: i for i, word in enumerate(vocab)}
+
+        for i, label in tqdm(enumerate(np.unique(labels)), desc="计算词主题频率矩阵", total=len(np.unique(labels))):
             if label == -1 and not consider_outliers:
                 continue
-            # 在词聚类中，每个词只有一个标签，统计词在各个聚类中的出现次数
-            word_topic_mat[:, i] = np.array([1 if l == label else 0 for l in labels])
+            # 获取属于当前聚类的词
+            cluster_words = [words[idx] for idx, l in enumerate(labels) if l == label]
+            # 计算词频并更新矩阵
+            for word in cluster_words:
+                if word in word_to_index:
+                    word_topic_mat[word_to_index[word], i] += 1
 
         return word_topic_mat
 
