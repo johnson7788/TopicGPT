@@ -172,7 +172,7 @@ class TopicGPT:
 
         self.document_embeddings = self.embedder.get_embeddings(corpus)["embeddings"]
 
-        self.vocab_embeddings = self.extractor.embed_vocab_openAI(self.client, self.vocab, embedder=self.embedder)
+        self.vocab_embeddings = self.extractor.embed_vocab_openAI(self.vocab, embedder=self.embedder)
 
         return self.document_embeddings, self.vocab_embeddings
 

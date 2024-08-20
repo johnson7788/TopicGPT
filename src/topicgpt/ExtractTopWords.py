@@ -210,13 +210,12 @@ class ExtractTopWords:
 
         return words_per_topic
                     
-    def embed_vocab_openAI(self, client, vocab: list[str], embedder: GetEmbeddingsLocal = None) -> dict[str, np.ndarray]:
+    def embed_vocab_openAI(self, vocab: list[str], embedder: GetEmbeddingsLocal = None) -> dict[str, np.ndarray]:
         """
         获取单词表中每个词的嵌入
         输入是客户端 client、词汇表 vocab 和可选的嵌入对象 embedder。
         返回值是词汇和其嵌入的字典。
         Args:
-            client: Client.
             vocab (list[str]): List of words in the corpus sorted alphabetically.
             embedder (GetEmbeddingsLocal, optional): Embedding object.
 
@@ -225,8 +224,6 @@ class ExtractTopWords:
         """
 
         vocab = sorted(list(set(vocab)))
-        if embedder is None: 
-            embedder = GetEmbeddingsLocal.GetEmbeddingsLocal(client)
         result = embedder.get_embeddings(vocab)
 
         res_dict = {}
@@ -290,6 +287,34 @@ class ExtractTopWords:
 
             word_topic_mat[:, i] = np.array([topic_doc_counter.get(word, 0) for word in vocab])
         #词典中的每个词
+        return word_topic_mat
+
+    def compute_word_topic_mat_words(self, vocab: list[str], labels: np.ndarray, consider_outliers=False) -> np.ndarray:
+        """
+        高效地计算词-主题矩阵，不用于主题问题，只用于词的聚类
+        输入是词汇表 vocab 和聚类标签 labels。
+        返回值是词-主题矩阵。
+
+        Args:
+            vocab (list[str]): List of words in the corpus.
+            labels (np.ndarray): Cluster labels. -1 indicates outliers.
+            consider_outliers (bool, optional): Whether to consider outliers when computing the top words. Defaults to False.
+
+        Returns:
+            np.ndarray: Word-topic matrix.
+        """
+
+        if consider_outliers:
+            word_topic_mat = np.zeros((len(vocab), len(np.unique(labels))))
+        else:
+            word_topic_mat = np.zeros((len(vocab), len(np.unique(labels[labels != -1]))))
+
+        for i, label in tqdm(enumerate(np.unique(labels)), desc="计算词主题矩阵", total=len(np.unique(labels))):
+            if label == -1 and not consider_outliers:
+                continue
+            # 在词聚类中，每个词只有一个标签，统计词在各个聚类中的出现次数
+            word_topic_mat[:, i] = np.array([1 if l == label else 0 for l in labels])
+
         return word_topic_mat
 
     def extract_topwords_tfidf(self, word_topic_mat: np.ndarray, vocab: list[str], labels: np.ndarray, top_n_words: int = 10) -> dict:
