@@ -306,16 +306,19 @@ class ExtractTopWords:
             np.ndarray: Word-topic matrix.
         """
 
-        # 初始化矩阵，行数为词汇表的大小，列数为聚类的数量
+        # 获取有效的标签（如果不考虑outliers，则移除-1的标签）
         if consider_outliers:
-            word_topic_mat = np.zeros((len(vocab), len(np.unique(labels))))
+            unique_labels = np.unique(labels)
         else:
-            word_topic_mat = np.zeros((len(vocab), len(np.unique(labels[labels != -1]))))
+            unique_labels = np.unique(labels[labels != -1])
+
+        # 初始化矩阵，行数为词汇表的大小，列数为有效标签的数量
+        word_topic_mat = np.zeros((len(vocab), len(unique_labels)))
 
         # 将词汇映射到其在词汇表中的索引
         word_to_index = {word: i for i, word in enumerate(vocab)}
 
-        for i, label in tqdm(enumerate(np.unique(labels)), desc="计算词主题频率矩阵", total=len(np.unique(labels))):
+        for i, label in tqdm(enumerate(unique_labels), desc="计算词主题频率矩阵", total=len(unique_labels)):
             if label == -1 and not consider_outliers:
                 continue
             # 获取属于当前聚类的词
