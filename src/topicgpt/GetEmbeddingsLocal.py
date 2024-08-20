@@ -240,6 +240,7 @@ class GetEmbeddingsLocal:
         Returns:
             dict: A dictionary containing the embeddings as a matrix and the corpus as a list of strings.
         """
+        print(f"计算文档嵌入，一共 {len(corpus)} 个文档...")
         if with_split_long:
             corpus_split = self.split_long_docs(corpus)
         else:
