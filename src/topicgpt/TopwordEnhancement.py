@@ -40,6 +40,10 @@ class TopwordEnhancement:
         self.basic_model_instruction = basic_model_instruction
         self.corpus_instruction = f"下面是主题识别的语料库信息: {corpus_instruction}"
         self.embedder = embedder
+        self.topic_name_prompt_function_zh = lambda tws: f"请给我这些词语的共同主题：{tws}。只需提供主题标题，其他内容不用提供。请确保标题精准，且不超过5个字，最好更短。"
+        self.topic_name_prompt_function_en = lambda tws: f"Please give me the common topic of those words: {tws}. Give me only the title of the topic and nothing else please. Make sure the title is precise and not longer than 5 words, ideally even shorter."
+        self.topic_description_prompt_function_zh = lambda tws: f"请给我这些词语的共同主题：{tws}。同时描述该主题的各个方面和子主题。请确保描述简短精练！每个子方面的描述不超过5个字！！！"
+        self.topic_description_prompt_function_en = lambda tws: f"Please give me the common topic of those words: {tws}. Also describe the various aspects and sub-topics of the topic. Make sure the descriptions are short and concise! Do not cite more than 5 words per sub-aspect!!!"
 
     def __str__(self) -> str:
         repr = f"TopwordEnhancement(openai_model = {self.openai_model})"
