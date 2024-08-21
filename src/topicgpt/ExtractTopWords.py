@@ -400,8 +400,16 @@ class ExtractTopWords:
         top_word_scores = {}
 
         for topic in range(word_topic_mat.shape[1]):
-            indices = np.argsort(-tfidf[:, topic])[:top_n_words]
-            top_words[topic] = [vocab[word_idx] for word_idx in indices]
+            # 获取排序结果
+            sorted_indices = np.argsort(-tfidf[:, topic])
+
+            # 过滤掉tfidf为0的结果
+            filtered_indices = [idx for idx in sorted_indices if tfidf[idx, topic] > 0]
+
+            # 只获取Top N的词汇
+            top_indices = filtered_indices[:top_n_words]
+            # 获取对应的词语
+            top_words[topic] = [vocab[word_idx] for word_idx in top_indices]
             top_word_scores[topic] = [tfidf[word_idx, topic] for word_idx in indices]
 
         return top_words, top_word_scores
