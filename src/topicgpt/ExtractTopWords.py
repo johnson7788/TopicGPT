@@ -410,7 +410,7 @@ class ExtractTopWords:
             top_indices = filtered_indices[:top_n_words]
             # 获取对应的词语
             top_words[topic] = [vocab[word_idx] for word_idx in top_indices]
-            top_word_scores[topic] = [tfidf[word_idx, topic] for word_idx in indices]
+            top_word_scores[topic] = [tfidf[word_idx, topic] for word_idx in top_indices]
 
         return top_words, top_word_scores
 
