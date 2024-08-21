@@ -90,7 +90,9 @@ class Topic:
         repr_dict = {
             "topic_idx": self.topic_idx,
             "topic_name": self.topic_name,
-            "topic_description": self.topic_description
+            "topic_description": self.topic_description,
+            "words": self.words,
+            "documents": self.documents,
         }
 
         json_object = json.dumps(repr_dict, indent = 4)
@@ -103,7 +105,9 @@ class Topic:
         repr_dict = {
             "topic_idx": int(self.topic_idx),
             "topic_name": self.topic_name,
-            "topic_description": self.topic_description
+            "topic_description": self.topic_description,
+            "words": self.words,
+            "documents": self.documents,
         }
         return repr_dict
     

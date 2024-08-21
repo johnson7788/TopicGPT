@@ -289,8 +289,7 @@ class ExtractTopWords:
         #词典中的每个词
         return word_topic_mat
 
-    def compute_word_topic_mat_words(self, words: list[str], vocab: list[str], labels: np.ndarray,
-                                     consider_outliers=False) -> np.ndarray:
+    def compute_word_topic_mat_words(self, words: list[str], vocab: list[str], labels: np.ndarray) -> np.ndarray:
         """
         高效地计算词-主题矩阵，不用于主题聚类相关，只用于词的聚类
         输入是words 和聚类标签 labels。
@@ -305,12 +304,9 @@ class ExtractTopWords:
         Returns:
             np.ndarray: Word-topic matrix.
         """
-
-        # 获取有效的标签（如果不考虑outliers，则移除-1的标签）
-        if consider_outliers:
-            unique_labels = np.unique(labels)
-        else:
-            unique_labels = np.unique(labels[labels != -1])
+        unique_labels = np.unique(labels)
+        # 对label进行排序，确保顺序是由小到大，因为位置就是对应这标签了
+        unique_labels = np.sort(unique_labels)
 
         # 初始化矩阵，行数为词汇表的大小，列数为有效标签的数量
         word_topic_mat = np.zeros((len(vocab), len(unique_labels)))
@@ -319,15 +315,13 @@ class ExtractTopWords:
         word_to_index = {word: i for i, word in enumerate(vocab)}
 
         for i, label in tqdm(enumerate(unique_labels), desc="计算词主题频率矩阵", total=len(unique_labels)):
-            if label == -1 and not consider_outliers:
-                continue
             # 获取属于当前聚类的词
             cluster_words = [words[idx] for idx, l in enumerate(labels) if l == label]
             # 计算词频并更新矩阵
             for word in cluster_words:
                 if word in word_to_index:
                     word_topic_mat[word_to_index[word], i] += 1
-
+        #包含异常点
         return word_topic_mat
 
     def extract_topwords_tfidf(self, word_topic_mat: np.ndarray, vocab: list[str], labels: np.ndarray, top_n_words: int = 10) -> dict:
@@ -370,7 +364,48 @@ class ExtractTopWords:
 
         # {0:[vocabs],1:[vocabs]}, top_word_scores: {0:[scores],1:[scores]}, top_words长度是vocabs的长度, scores长度是vocabs的长度
         return top_words, top_word_scores
-    
+
+    def extract_topwords_tfidf_words(self, word_topic_mat: np.ndarray, vocab: list[str], top_n_words: int = 10) -> dict:
+        """
+        使用基于类的tf-idf得分提取每个类别的高频词。
+        输入是词-类别矩阵 word_topic_mat 和词汇表 vocab。
+        返回值是每个类别的高频词字典。
+
+        Args:
+            word_topic_mat (np.ndarray): Word-topic (category) matrix.
+            vocab (list[str]): List of words in the corpus.
+            top_n_words (int, optional): Number of top words to extract per topic.
+
+        Returns:
+            dict: Dictionary of topics and their top words.
+        """
+
+        with warnings.catch_warnings():
+            warnings.filterwarnings("ignore", category=RuntimeWarning)
+
+            # 计算TF (term frequency)
+            tf = word_topic_mat / np.sum(word_topic_mat, axis=0)
+
+            # 计算IDF (inverse document frequency)
+            idf = np.log(1 + (word_topic_mat.shape[1] / np.sum(word_topic_mat > 0, axis=1)))
+
+            # 计算TF-IDF
+            tfidf = tf * idf[:, np.newaxis]
+
+            # 如果TF为NaN，设为0
+            tfidf[np.isnan(tf)] = 0
+
+        # 提取每个类别的Top N高频词
+        top_words = {}
+        top_word_scores = {}
+
+        for topic in range(word_topic_mat.shape[1]):
+            indices = np.argsort(-tfidf[:, topic])[:top_n_words]
+            top_words[topic] = [vocab[word_idx] for word_idx in indices]
+            top_word_scores[topic] = [tfidf[word_idx, topic] for word_idx in indices]
+
+        return top_words, top_word_scores
+
     def compute_embedding_similarity_centroids(self, vocab: list[str], vocab_embedding_dict: dict, umap_mapper: umap.UMAP, centroid_dict: dict, reduce_vocab_embeddings: bool = False, reduce_centroid_embeddings: bool = False) -> np.ndarray:
         """
         计算词汇到聚类质心的余弦相似度。
@@ -394,7 +429,7 @@ class ExtractTopWords:
             centroid_arr[i] = centroid
         if reduce_centroid_embeddings:
             centroid_arr = umap_mapper.transform(centroid_arr)
-        
+        # 计算质心，[3,5]
         centroid_arr = centroid_arr / np.linalg.norm(centroid_arr, axis=1).reshape(-1,1)
         
         # eg: org_embedding_dim: 768
@@ -404,9 +439,9 @@ class ExtractTopWords:
             vocab_arr[i] = vocab_embedding_dict[word]
         if reduce_vocab_embeddings:
             vocab_arr = umap_mapper.transform(vocab_arr)
-
+        #词典中每个词的嵌入降维后的质心, [vocab_size, 5]
         vocab_arr = vocab_arr / np.linalg.norm(vocab_arr, axis=1).reshape(-1,1)
-        
+        #similarity: [29,3]
         similarity = vocab_arr @ centroid_arr.T # cosine similarity
         return similarity
     
@@ -419,7 +454,7 @@ class ExtractTopWords:
             word_topic_mat (np.ndarray): Word-topic matrix.
             vocab (list[str]): List of words in the corpus sorted alphabetically.
             vocab_embedding_dict (dict): Dictionary of words and their embeddings.
-            centroid_dict (dict): Dictionary of cluster labels and their centroids. -1 means outlier.
+            centroid_dict (dict):标签对应的质心的字典 -1 means outlier.
             umap_mapper (umap.UMAP): UMAP mapper to transform new embeddings in the same way as the document embeddings.
             top_n_words (int, optional): Number of top words to extract per topic.
             reduce_vocab_embeddings (bool, optional): Whether to reduce the vocab embeddings with the UMAP mapper.
@@ -430,18 +465,17 @@ class ExtractTopWords:
             dict: Dictionary of topics and their top words.
             np.ndarray: Cosine similarity of each word in the vocab to each centroid. Has shape (len(vocab), len(centroid_dict) - 1).
         """
-
+        #[vocab_size, 3]
         similarity_mat = self.compute_embedding_similarity_centroids(vocab, vocab_embedding_dict, umap_mapper, centroid_dict, reduce_vocab_embeddings, reduce_centroid_embeddings)
         top_words = {}
         top_word_scores = {}
         
-        if word_topic_mat.shape[1] > len(np.unique(list(centroid_dict.keys()))):	
-            word_topic_mat = word_topic_mat[:, 1:] #ignore outliers
+        # if word_topic_mat.shape[1] > len(np.unique(list(centroid_dict.keys()))):
+        #     word_topic_mat = word_topic_mat[:, 1:] #ignore outliers, 这里不知道outliners的位置啊，随便给的？
 
         for i, topic in enumerate(np.unique(list(centroid_dict.keys()))):
-            if topic != -1:
-                topic_similarity_mat = similarity_mat[:, topic] * word_topic_mat[:, topic]
-                top_words[topic] = [vocab[word_idx] for word_idx in np.argsort(-topic_similarity_mat)[:top_n_words]]
-                top_word_scores[topic] = [similarity_mat[word_idx, topic] for word_idx in np.argsort(-similarity_mat[:, topic])[:top_n_words]]
+            topic_similarity_mat = similarity_mat[:, topic] * word_topic_mat[:, topic]
+            top_words[topic] = [vocab[word_idx] for word_idx in np.argsort(-topic_similarity_mat)[:top_n_words]]
+            top_word_scores[topic] = [similarity_mat[word_idx, topic] for word_idx in np.argsort(-similarity_mat[:, topic])[:top_n_words]]
         # {0: ['word1', 'word2', ...], 1: ['word3', 'word4', ...], ...}, # 单词标签对应
         return top_words, top_word_scores
