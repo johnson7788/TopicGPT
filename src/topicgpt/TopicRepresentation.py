@@ -93,6 +93,7 @@ class Topic:
             "topic_description": self.topic_description,
             "words": self.words,
             "documents": self.documents,
+            "top_words": self.top_words,
         }
 
         json_object = json.dumps(repr_dict, indent = 4)
@@ -108,6 +109,7 @@ class Topic:
             "topic_description": self.topic_description,
             "words": self.words,
             "documents": self.documents,
+            "top_words": self.top_words,
         }
         return repr_dict
     

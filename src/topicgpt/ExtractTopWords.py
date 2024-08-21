@@ -36,6 +36,7 @@ class ExtractTopWords:
         centroid_dict = {}
         for label in np.unique(labels):
             if label != -1:
+                # 离群点不应该有质心
                 centroid_dict[label] = np.mean(embeddings[labels == label], axis = 0)
 
         return centroid_dict
@@ -293,7 +294,7 @@ class ExtractTopWords:
         """
         高效地计算词-主题矩阵，不用于主题聚类相关，只用于词的聚类
         输入是words 和聚类标签 labels。
-        返回值是词-主题矩阵。
+        返回值是词-主题矩阵。需要去掉离群点，否则影响tfidf和cosine的计算
 
         Args:
             words (list[str]): List of words in the corpus.
@@ -304,8 +305,9 @@ class ExtractTopWords:
         Returns:
             np.ndarray: Word-topic matrix.
         """
-        unique_labels = np.unique(labels)
-        # 对label进行排序，确保顺序是由小到大，因为位置就是对应这标签了
+        # 获取有效的标签（如果不考虑outliers，则移除-1的标签）
+        unique_labels = np.unique(labels[labels != -1])
+        # 对label进行排序，确保顺序是由小到大，因为位置就是对应这标签了, 标签是从0开始
         unique_labels = np.sort(unique_labels)
 
         # 初始化矩阵，行数为词汇表的大小，列数为有效标签的数量
