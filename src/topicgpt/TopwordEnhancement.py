@@ -353,7 +353,7 @@ DESCRIPTION:
                 {"role": "system","content": self.basic_model_instruction_en + " " + self.corpus_instruction},
                 {"role": "user", "content": self.topic_name_description_prompt_function_en(topwords_str)},
             ]
-        max_retries = 5
+        max_retries = 10
         retries = 0
         all_errors = []
         error_messages = ""

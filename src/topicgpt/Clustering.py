@@ -1,3 +1,5 @@
+import logging
+
 import numpy as np
 import umap
 import hdbscan
@@ -55,11 +57,12 @@ class Clustering_and_DimRed():
         assert min_cluster_size_hdbscan > 0, "min_cluster_size_hdbscan must be greater than 0"
         assert number_clusters_hdbscan is None or number_clusters_hdbscan > 0, "number_clusters_hdbscan must be greater than 0 or None"
         assert random_state is None or random_state >= 0, "random_state must be greater than or equal to 0"
-        if isinstance(number_clusters_hdbscan, int) and number_clusters_hdbscan < min_cluster_size_hdbscan:
+        if isinstance(number_clusters_hdbscan, int) and number_clusters_hdbscan <= min_cluster_size_hdbscan:
             # 类别的最小数量必须大于类别数量
             min_cluster_size_hdbscan = int(number_clusters_hdbscan / 2)
             if min_cluster_size_hdbscan == 1:  # 最小聚类数量不能为1
                 min_cluster_size_hdbscan = 2
+        logging.info(f"聚类数量是: {number_clusters_hdbscan},最小数量是: {min_cluster_size_hdbscan}")
         self.random_state = random_state
         self.verbose = verbose
         self.UMAP_hyperparams = UMAP_hyperparams  # {'n_components': 5}
@@ -74,6 +77,7 @@ class Clustering_and_DimRed():
         self.UMAP_hyperparams["verbose"] = verbose
         self.umap = umap.UMAP(**self.UMAP_hyperparams)
         #
+        self.HDBSCAN_hyperparams["min_samples"] = 1  # 设置最小形成簇的样本数为1
         self.HDBSCAN_hyperparams["min_cluster_size"] = min_cluster_size_hdbscan
         self.HDBSCAN_hyperparams["metric"] = metric_hdbscan
         self.HDBSCAN_hyperparams["cluster_selection_method"] = cluster_selection_method_hdbscan
