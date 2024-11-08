@@ -59,14 +59,14 @@ class TopwordEnhancement:
         self.topic_name_description_prompt_function_zh = lambda tws: f"""我会提供一些词语，请提供这些词语的共同主题、描述。主题不超过5个字。
 词语列表: {tws}
 输出格式如下:
-主题：
-描述：
+主题：xxx
+描述：xxx
 """
         self.topic_name_description_prompt_function_en = lambda tws: f"""I'll provide some words. Please provide the common topic and descriptions for these words. topic should not exceed 5 words.
 Word list: {tws}
 The output format is as follows:
-TOPIC:
-DESCRIPTION:
+TOPIC: xxx
+DESCRIPTION: xxx
 """
 
     def __str__(self) -> str:
@@ -343,16 +343,10 @@ DESCRIPTION:
             n_words = np.argmax(tokens_cumsum > self.max_context_length)
             topwords = topwords[:n_words]
         topwords_str = ",".join(topwords)
-        if language == "chinese":
-            messages = [
-                {"role": "system","content": self.basic_model_instruction_zh + " " + self.corpus_instruction},
-                {"role": "user", "content": self.topic_name_description_prompt_function_zh(topwords_str)},
-            ]
-        else:
-            messages = [
-                {"role": "system","content": self.basic_model_instruction_en + " " + self.corpus_instruction},
-                {"role": "user", "content": self.topic_name_description_prompt_function_en(topwords_str)},
-            ]
+        messages = [
+            {"role": "system","content": self.basic_model_instruction_en + " " + self.corpus_instruction},
+            {"role": "user", "content": self.topic_name_description_prompt_function_en(topwords_str)},
+        ]
         max_retries = 10
         retries = 0
         all_errors = []
@@ -367,20 +361,11 @@ DESCRIPTION:
                                                                  messages=new_messages,
                                                                  temperature=self.openai_model_temperature)
                 output = completion.choices[0].message.content
-                if language == "chinese":
-                    assert check_has_chinese(text=output),"output does not contain chinese characters"
-                    assert "主题：" in output, "输出不包含 '主题：'"
-                    assert "描述：" in output, "输出不包含 '描述：'"
-                else:
-                    assert "TOPIC:" in output, "output does not contain 'TOPIC:'"
-                    assert "DESCRIPTION:" in output, "output does not contain 'DESCRIPTION:'"
+                assert "TOPIC:" in output, "output does not contain 'TOPIC:'"
+                assert "DESCRIPTION:" in output, "output does not contain 'DESCRIPTION:'"
                 topic, description = self.extract_topic_and_description(text=output, language=language)
-                if language == "chinese":
-                    assert topic, "主题：格式错误"
-                    assert description, "描述：格式错误"
-                else:
-                    assert topic, "TOPIC: format is incorrect"
-                    assert description, "DESCRIPTION: format is incorrect"
+                assert topic, "TOPIC: format is incorrect"
+                assert description, "DESCRIPTION: format is incorrect"
                 return topic, description
             except Exception as e:
                 retries += 1
